@@ -2,7 +2,7 @@
 import struct
 
 from cps2 import program
-from build import win_quotes
+from build import story_text, win_quotes
 
 # The region is an immediate word in the boot code (`move.w #region, $90(a5)` at
 # 0x10cc): 0 Japan, 2 USA, 4 Hispanic, 6 Oceania, 8 Asia, 0xa Europe, 0xc Brazil.
@@ -40,4 +40,6 @@ def build(rom_directory):
     free_space, untranslated = win_quotes.apply(vsav2e, savior, FREE_SPACE_START, FREE_SPACE_END)
     print('win quotes: 0x%x-0x%x, still Japanese for character ids %s'
           % (FREE_SPACE_START, free_space, ', '.join('%02x' % i for i in untranslated)))
+    story_end = story_text.apply(vsav2e, savior, free_space, FREE_SPACE_END)
+    print('endings and Jedah: 0x%x-0x%x' % (free_space, story_end))
     return bytes(vsav2e)

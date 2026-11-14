@@ -31,6 +31,12 @@ function on_frame(f)
   for _,p in ipairs(pokes) do if f>=p[1] and f<=p[4] then prog:write_u8(p[2],p[3]) end end
   -- GDUMPS: the CPS2 graphics RAM (scroll layers and palettes), 0x900000-0x92ffff
   if gfx_dumps[f] then local fh=io.open(out..'/gfxram_'..f..'.bin','wb'); fh:write(prog:read_range(0x900000,0x92ffff,8)); fh:close() end
+  -- GDUMPS also saves the sprite list (objram1, 8 bytes per sprite: x, y, code, attributes)
+  if gfx_dumps[f] then
+    local sprite_ram=manager.machine.memory.shares[':objram1']; local words={}
+    for offset=0,sprite_ram.size-2,2 do words[#words+1]=string.pack('>I2',sprite_ram:read_u16(offset)) end
+    local fh=io.open(out..'/objram_'..f..'.bin','wb'); fh:write(table.concat(words)); fh:close()
+  end
   if dumps[f] then local fh=io.open(out..'/ram_'..f..'.bin','wb'); fh:write(prog:read_range(0xff0000,0xffffff,8)); fh:close() end
   if shots[f] then manager.machine.video:snapshot(); os.rename(out..'/'..manager.machine.system.name..'/0000.png',out..string.format('/f%06d.png',f)) end
   if on_frame2 then on_frame2(f) end

@@ -28,7 +28,24 @@ quotes display correctly with no graphics change.
 
 Vampire Hunter 2's quotes match none of Vampire Savior's.
 
+## Endings and Jedah's welcome
+
+Vampire Savior 2 replaced the per-character endings with one scrolling ending (plus one
+for Jedah) and gave Jedah a speech before the last fight. Language tables (4 long
+pointers, all to the Japanese data): `0xf964` endings (2 blocks: 18 and 11 one-line
+quotes), `0xf974` Jedah (2 blocks of 4 quotes). They were never translated by Capcom:
+the English is ours, in `text/vsav2_story_en.py`, written by `tools/build/story_text.py`.
+
+- The kanji font is sprite tiles `0x14200 + code` (how the Japanese was read: rendered
+  from the graphics ROM).
+- With a Western language the game shows these texts in its Western style by itself
+  (proportional spacing, light blue).
+- Ending lines hold at most 24 letters: with 29 the game crashes (several lines are on
+  screen at once; the limit is somewhere in between). Other lines at most 30.
+- Known cosmetic point: the ending lines are centred as if every letter were 8 pixels
+  wide, so they sit a little off centre.
+
 ## Not done yet
 
-Endings (same text format, blocks found next to the quotes), the three untranslated
-characters, the Japanese in graphics (if any), the remaining system text.
+The three untranslated characters (ids 10, 11, 13), the Japanese in graphics (if any),
+the remaining system text.
