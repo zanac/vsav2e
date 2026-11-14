@@ -59,4 +59,7 @@ run one character to the end of his ending with each tap.
   program: which sequences really play (sound n plays entry n + 1).
 - `music_compare.py`: compares the recordings of an ending in the two games, piece by
   piece (`tools/dev/libretro_run.c` with `AUDIO` and `WATCH=618001,618003`).
-
+- `instruments_check.py`: every instrument the endings read (the `ztap.lua` logs)
+  compared with what vsav2e plays.
+- `sqtap.lua`: logs the 68000's registers when it writes an effect number (`0xe4`-`0xe8`)
+  to the QSound shared RAM (the copier at `0x317c`, queue at `0xff0e0e`).

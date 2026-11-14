@@ -92,7 +92,11 @@ Vampire Savior 2's sound program has other music under those numbers, or none, s
   with Vampire Savior's instruments; in a sequence of bank 13 or more `1f nn` picks bank
   nn through a small table. Their samples are all somewhere in vsav2e's 16 MB.
 - **Sound effects.** The few the endings ask for (`0xe4`-`0xe8`, Zabel's and Sasquatch's)
-  are the same sequences in Vampire Hunter 2, already copied for the three characters.
+  are the same sequences in Vampire Hunter 2, already copied for the three characters,
+  so they play with Vampire Hunter 2's instruments: the same samples, but five of them
+  have other envelopes (bank 1 #3, #11, #42, #70, bank 5 #59). Giving the endings their
+  own copies needs the places that ask for them, not found yet (they are not `moveq`
+  before a call of the sound routines in the moved code).
 
 Things learnt:
 - Sound number n plays the sequence of entry n + 1 of the table at `0x9001` (the driver
