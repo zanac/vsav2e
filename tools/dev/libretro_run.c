@@ -85,7 +85,7 @@ static const struct { const char *name; int joypad_id; } button_names[] = {
 struct press { int frame; unsigned port; int joypad_id; };
 struct poke { int first_frame, last_frame; unsigned address, value; };
 
-#define MAXIMUM_ITEMS 256
+#define MAXIMUM_ITEMS 4096
 static struct press presses[MAXIMUM_ITEMS];
 static int press_count;
 static struct poke pokes[MAXIMUM_ITEMS];
