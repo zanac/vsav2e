@@ -133,8 +133,11 @@ the left and 8 down in the captures.
 ## Names
 
 Jon Talbain, Rikuo, Lord Raptor, B.B. Hood, Hsien-Ko and Huitzil have their Western
-names on the select and VS screens, in the score ranking and over the vitality bars:
-`tools/build/names.py` (Capcom's own graphics, still in the game).
+names on the select and VS screens, in the score ranking, over the vitality bars and
+under the faces of the "Master of" list in the credits: `tools/build/names.py` (Capcom's
+own graphics, still in the game). The default records (score ranking, "Master of") and
+the service menu's game data use the Western initials too: BBH, TAL, RAP, RIK, HSI,
+HUI instead of BUL, GAL, ZAB, AUL, LEI, PHO.
 
 ## Sound
 
