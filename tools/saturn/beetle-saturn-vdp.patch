@@ -1,0 +1,25 @@
+diff --git a/mednafen/ss/vdp2.c b/mednafen/ss/vdp2.c
+index 53334ec..fa55f02 100644
+--- a/mednafen/ss/vdp2.c
++++ b/mednafen/ss/vdp2.c
+@@ -1283,3 +1283,20 @@ void VDP2_StateAction(StateMem* sm, const unsigned load, const bool data_only)
+  * into vdp2.h's C-compat block, which means smpc.c now gets it
+  * inlined directly from the header at zero call cost -- an
+  * improvement over the previous proxy form.  See vdp2.h. */
++
++/* Development hook (not part of the core proper): hands the raw VDP2 memories to a
++ * test frontend. which: 0 = VRAM (512 KB), 1 = colour RAM (4 KB), 2 = registers, 3 = VDP1 VRAM.
++ * The words are in host order, so each uint16_t holds the value the Saturn sees. */
++extern uint16_t VDP1_VRAM[0x40000];
++const uint16_t *retro_dev_vdp_ram(int which, size_t *words)
++{
++ switch (which)
++ {
++  case 0: *words = 262144; return VRAM;
++  case 1: *words = 2048; return CRAM;
++  case 2: *words = 0x100; return RawRegs;
++  case 3: *words = 0x40000; return VDP1_VRAM;
++ }
++ *words = 0;
++ return 0;
++}
