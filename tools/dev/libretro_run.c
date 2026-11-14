@@ -372,6 +372,7 @@ int main(int argc, char **argv)
     struct retro_game_info game = { NULL, NULL, 0, NULL };
     void (*write8)(unsigned, unsigned);
     unsigned (*read8)(unsigned);
+    unsigned (*program_counter)(void) = NULL;
     void (*run)(void);
     int frame_count;
     /* struct retro_system_av_info: five geometry fields, then fps and sample rate */
@@ -401,6 +402,7 @@ int main(int argc, char **argv)
 
     write8 = (void (*)(unsigned, unsigned))dlsym(core, "retro_dev_write8");
     read8 = (unsigned (*)(unsigned))dlsym(core, "retro_dev_read8");
+    program_counter = (unsigned (*)(void))dlsym(core, "retro_dev_pc");
     if ((!write8 && (poke_count || autowin_from_frame >= 0)) || (!read8 && dump_count)) {
         fprintf(stderr, "POKES, DUMPS and AUTOWIN need a core with mame2003plus-dev-memory.patch\n");
         return 1;
@@ -441,6 +443,8 @@ int main(int argc, char **argv)
                 dump_memory(read8, 0xff8000, 0xffc000, "ram");
                 dump_memory(read8, 0xff0000, 0x1000000, "wram");
                 dump_memory(read8, 0x900000, 0x930000, "gfxram");
+                if (program_counter)
+                    printf("frame %d: pc %06x\n", current_frame, program_counter());
             }
     }
     if (audio_file) {

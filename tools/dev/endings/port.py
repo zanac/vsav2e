@@ -278,6 +278,7 @@ class Port:
 
         for s, e, n in self.place[:len(CODE_RANGES)]:
             image[n - image_base:n - image_base + e - s] = P[s:e]
+
         last_alloc = None
         for a in sorted(self.seen):
             ins = self.seen[a]
@@ -367,7 +368,9 @@ VSAV_GFX = np.load('/tmp/claude-0/vs/vsav_gfx.npy', mmap_mode='r')    # unshuffl
 
 # pointer fields of the animation data, found by the code that reads them
 STEP_FRAME_READERS = (0x1afaa, 0x1b7f4)      # movea.l 4(a0), a0: the frame of a step
-STEP_LOOP_READERS = (0x1504e,)               # movea.l 8(a0), a0: the step a loop goes back to
+STEP_LOOP_READERS = (0x1504e, 0x151a0)
+# tile animations of scroll 2 (16-byte steps): the tile block of a step
+TILE_STEP_BLOCK_READERS = (0x15206,)               # movea.l 8(a0), a0: the step a loop goes back to
 FRAME_TYPE_READERS = (0x1afae,)              # move.w (a0)+, d0: the type of a frame
 
 SCROLL_BANK_REGISTER = 0x8040c0              # vsav2e: bit 0-2 scroll 1-3 tiles from the scroll bank
@@ -428,7 +431,14 @@ class Graphics:
             entries = set()
             for pc in pcs:
                 entries |= {a for a in READS.get(pc, set()) if a >= base and (a - base) % step == 0}
-            out += [(layer, a, (W(a) + offset) & 0xffff) for a in sorted(entries)]
+            out += [(layer, a, (W(a) + offset) & 0xffff, 0) for a in sorted(entries)]
+        # tile blocks of the scroll 2 animations (0x15182): 3 words, then (code, attribute);
+        # vsav2's copy of the routine adds 0x4200 to the code, Vampire Savior's 0x3800
+        blocks = READS.get(0x1520a, set())
+        for a in sorted(READS.get(0x15214, set())):
+            start = max([b for b in blocks if b <= a], default=None)
+            if start is not None and (a - start - 6) % 4 == 0:
+                out.append((2, a, (W(a) + 0x3800) & 0xffff, 0x4200))
         return out
 
 
@@ -450,7 +460,7 @@ def apply(vsav2e, extension, extension_base, start, upper_chips):
             port.warnings.append('data %06x: pointer %08x outside the copied data' % (a, v)); return
         n = port.new_address(a)
         extension[ext(n):ext(n) + 4] = nv.to_bytes(4, 'big'); fixed.add(a)
-    for a in long_fields(STEP_FRAME_READERS) | long_fields(STEP_LOOP_READERS):
+    for a in long_fields(STEP_FRAME_READERS) | long_fields(STEP_LOOP_READERS) | long_fields(TILE_STEP_BLOCK_READERS):
         fix(a)
     for f in READS.get(0x1afae, set()):
         if W(f) in (0, 2):
@@ -465,13 +475,13 @@ def apply(vsav2e, extension, extension_base, start, upper_chips):
     codes = g.scroll_codes()
     # the layer fill at 0x14ffa writes code 0x3810 + d0 (d0 = 1, its only use) to scroll 2
     FILL_ADDI = 0x15002
-    codes_all = codes + [(2, None, 0x3811)]
+    codes_all = codes + [(2, None, 0x3811, 0)]
     new_code = {}
     # the codes vsav2's own code fills empty layers with must stay blank in the bank
     reserved = [(code * size, code * size + size) for code, size in BLANK_CODES]
     position = 0
     for layer, size in ((3, 512), (2, 128), (1, 64)):
-        for c in sorted({c for l, a, c in codes_all if l == layer}):
+        for c in sorted({c for l, a, c, bias in codes_all if l == layer}):
             while True:
                 position = (position + size - 1) // size * size
                 clash = [e for s, e in reserved if s < position + size and position < e]
@@ -484,9 +494,9 @@ def apply(vsav2e, extension, extension_base, start, upper_chips):
             raw_write(scroll_chips, position, bytes(VSAV_GFX[source:source + size]))
             position += size
     assert position <= SCROLL_BANK_SIZE
-    for layer, a, c in codes:
+    for layer, a, c, bias in codes:
         n = port.new_address(a)
-        extension[ext(n):ext(n) + 2] = new_code[(layer, c)].to_bytes(2, 'big')
+        extension[ext(n):ext(n) + 2] = ((new_code[(layer, c)] - bias) & 0xffff).to_bytes(2, 'big')
     n = port.new_address(FILL_ADDI)
     assert extension[ext(n):ext(n) + 4] == bytes.fromhex('06403810')
     extension[ext(n) + 2:ext(n) + 4] = (new_code[(2, 0x3811)] - 1).to_bytes(2, 'big')

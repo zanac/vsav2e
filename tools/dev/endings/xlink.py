@@ -12,6 +12,9 @@ from capstone import Cs, CS_ARCH_M68K, CS_MODE_BIG_ENDIAN, CS_MODE_M68K_000
 md = Cs(CS_ARCH_M68K, CS_MODE_BIG_ENDIAN | CS_MODE_M68K_000)
 md.detail = True
 P = program.load_program('vsavd', '/tmp/claude-0/vs/t')
+# the instructions as the 68000 fetches them: MAME's decryption of vsav (the opcode
+# space). vsavd has filler (0xaaaa) where its makers never saw the code run.
+OPS = open('/tmp/claude-0/vs/vsav_ops.bin', 'rb').read()
 W = lambda a: struct.unpack('>H', P[a:a + 2])[0]
 L = lambda a: struct.unpack('>I', P[a:a + 4])[0]
 SW = lambda a: struct.unpack('>h', P[a:a + 2])[0]

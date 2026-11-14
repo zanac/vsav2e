@@ -6,7 +6,7 @@ diff --git a/src/mame2003/mame2003.c b/src/mame2003/mame2003.c
 index 4c07a1a..d1e1568 100644
 --- a/src/mame2003/mame2003.c
 +++ b/src/mame2003/mame2003.c
-@@ -695,6 +695,20 @@ void *retro_get_memory_data(unsigned type) {return 0;}
+@@ -695,6 +695,24 @@ void *retro_get_memory_data(unsigned type) {return 0;}
  size_t retro_get_memory_size(unsigned type) {return 0;}
  bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info){return false;}
  void retro_cheat_reset(void){}
@@ -23,6 +23,10 @@ index 4c07a1a..d1e1568 100644
 +  value = cpu_readmem24bew(address);
 +  cpuintrf_pop_context();
 +  return value;
++}
++__attribute__((visibility("default"))) unsigned retro_dev_pc(void)
++{
++  return cpunum_get_reg(0, REG_PC);
 +}
  void retro_cheat_set(unsigned unused, bool unused1, const char* unused2){}
  void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }

@@ -2,7 +2,7 @@ import struct, collections, sys
 sys.path.insert(0, '/tmp/claude-0/vs/end')
 import port
 p = port.Port(); g = port.Graphics(p)
-codes = g.scroll_codes() + [(2, None, 0x3811)]
+codes = [c[:3] for c in g.scroll_codes()] + [(2, None, 0x3811)]
 new = {}
 reserved = [(code * size, code * size + size) for code, size in port.BLANK_CODES]
 pos = 0
