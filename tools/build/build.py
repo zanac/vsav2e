@@ -18,6 +18,21 @@ LANGUAGE_COPY_ADDRESS = 0x1a5c
 LANGUAGE_COPY_ORIGINAL = bytes.fromhex('1b6c00080093')
 LANGUAGE_ALWAYS_ENGLISH = bytes.fromhex('1b7c00020093')
 
+# The decrypted set carries the "Phoenix Edition" boot menu (code at 0xff000, called at
+# 0x110c right after the region is set). It reads its own region choice from the EEPROM
+# and writes it over $90(a5): with no choice stored that is 0, Japan. vsav2e has one
+# region, so the call is removed (three `nop`).
+PHOENIX_MENU_CALL_ADDRESS = 0x110c
+PHOENIX_MENU_CALL_ORIGINAL = bytes.fromhex('4eb9000ff000')      # jsr $ff000
+PHOENIX_MENU_CALL_REMOVED = bytes.fromhex('4e714e714e71')
+
+# Factory settings: one 0x30-byte block per region from 0x2366 (offsets at 0x2358). The
+# first byte is the coinage: Europe's is 9 (2 coins, 1 credit), Japan's 0 (1 coin,
+# 1 credit); vsav2e keeps the Japanese coinage.
+EUROPE_DEFAULT_COINAGE_ADDRESS = 0x2366 + 5 * 0x30
+EUROPE_DEFAULT_COINAGE = 9
+ONE_COIN_ONE_CREDIT = 0
+
 # unused (0xff) space of the program ROM
 FREE_SPACE_START = 0xebc00
 FREE_SPACE_END = 0xff000
@@ -36,6 +51,15 @@ def build(rom_directory):
     if vsav2e[LANGUAGE_COPY_ADDRESS:end] != LANGUAGE_COPY_ORIGINAL:
         raise SystemExit('unexpected code at the language copy: not the vsav2d program')
     vsav2e[LANGUAGE_COPY_ADDRESS:end] = LANGUAGE_ALWAYS_ENGLISH
+
+    end = PHOENIX_MENU_CALL_ADDRESS + len(PHOENIX_MENU_CALL_ORIGINAL)
+    if vsav2e[PHOENIX_MENU_CALL_ADDRESS:end] != PHOENIX_MENU_CALL_ORIGINAL:
+        raise SystemExit('unexpected code at the Phoenix menu call')
+    vsav2e[PHOENIX_MENU_CALL_ADDRESS:end] = PHOENIX_MENU_CALL_REMOVED
+
+    if vsav2e[EUROPE_DEFAULT_COINAGE_ADDRESS] != EUROPE_DEFAULT_COINAGE:
+        raise SystemExit('unexpected factory settings for Europe')
+    vsav2e[EUROPE_DEFAULT_COINAGE_ADDRESS] = ONE_COIN_ONE_CREDIT
 
     free_space, untranslated = win_quotes.apply(vsav2e, savior, FREE_SPACE_START, FREE_SPACE_END)
     print('win quotes: 0x%x-0x%x, still Japanese for character ids %s'

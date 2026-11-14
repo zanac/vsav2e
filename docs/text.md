@@ -49,6 +49,25 @@ the English is ours, in `text/vsav2_story_en.py`, written by `tools/build/story_
   twice too much for the Western letters, which advance 8 pixels. vsav2e makes it
   `asl.w #2, d0`, so the lines are centred.
 
-## Not done yet
+## Region: what else it changes
 
-The Japanese in graphics (if any), the remaining system text.
+- The decrypted set has the "Phoenix Edition" boot menu (code at `0xff000`, called at
+  `0x110c`): it reads a region choice from the EEPROM and writes it over `$90(a5)`, so
+  the region set at `0x10cc` was lost (0, Japan, with nothing stored). vsav2e removes
+  the call.
+- Factory settings: one 0x30-byte block per region from `0x2366` (offsets at `0x2358`),
+  ending with a date and a 12-letter name that differs per region, so a change of
+  region rewrites the EEPROM. Byte 0 is the coinage (Japan, Oceania, Asia: 1 coin 1
+  credit; USA, Europe: 2 coins 1 credit), byte 8 the language. vsav2e sets Europe's
+  coinage to 1 coin 1 credit.
+
+## Checked on screen
+
+Warning, attract mode, title, character select, VS screen, fight (HUD, READY, FIGHT,
+K.O., PERFECT, bonus), win quotes, continue, game over, score ranking, both endings,
+credits: no Japanese left, and nothing Japanese is drawn in the graphics. Character
+ids for tests: `0f` Jedah, `10` Huitzil, `11` Pyron, `13` Donovan; `12` is a dark
+Talbain still in the game.
+
+Not seen on screen: Jedah's welcome when the player is Jedah (second block of
+`0xf974`); in a Jedah against Jedah game the fight starts with no speech.
