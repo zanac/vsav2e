@@ -34,3 +34,36 @@ What is where so far:
   little and big endian) for common English words finds only the menu strings. They are
   compressed, or drawn from pre-rendered images.
 
+
+## Running the game: tools/psx/psxrun.c
+
+A small scriptable libretro frontend (no window, no sound) around PCSX-ReARMed, whose
+built-in HLE BIOS means no Sony BIOS is needed. Inputs, pictures, RAM dumps and RAM pokes
+are given per frame in environment variables (see the comment at the top of the file).
+Build: `gcc -O2 -Wall -o psxrun tools/psx/psxrun.c -ldl`; the core is
+`pcsx_rearmed_libretro.so` from https://github.com/libretro/pcsx_rearmed
+(`make -f Makefile.libretro`). The interpreter is used by default (`DYNAREC=1` turns the
+recompiler on; it crashed once while RAM was being poked).
+
+Session used so far: START at frame 2600 and 2800 (title, ARCADE), cross from 3000 every
+200 frames (character, mode, ...): the first fight (Demitri against Victor) starts around
+frame 5050.
+
+## RAM (US version, also the GameShark codes)
+
+| Address (RAM offset) | What |
+|---|---|
+| `1c0e54`, `1c0e56` | player 1 vitality (`0x120` full) |
+| `1c1228`, `1c122a` | player 2 vitality |
+| `1c1112` / `1c14e6` | player 1 / player 2 character |
+| `1c1d70`-`1c1d76` | endings and portraits seen (all `ffff`, `3fff` at `1c1d72`, unlock them in COLLECTION) |
+| `1c1d78` | `3` enables the DX and EX option modes |
+
+## Win quotes
+
+The win quote after a match is drawn in a proportional font (e.g. Victor: "I used to be
+just bits and pieces, now it's your turn!"), but the sentence is in RAM in no simple form:
+no ASCII, and no sequence with the same letter pattern (any one-to-one encoding, 8, 16 or
+32 bits per letter, with or without spaces). So it is probably a pre-rendered picture
+loaded from the disc for each quote, which would make the PlayStation a source to read
+(screenshots) rather than to extract.
