@@ -3,13 +3,17 @@
 In a match between two players (both started, or one joined in), the challenger picks the
 stage on the select screen. After he has picked his character, his cursor stays on the
 grid: the top of the screen shows SELECT STAGE and the name of the stage of the portrait
-under the cursor, the stage where the one-player game fights that character. An attack
-button picks it (or the end of the timer, ten seconds); the "?" portrait keeps the stage
-the game picks at random. The game then goes on as usual (the speed menu, if the operator
+under the cursor, the stage where the one-player game fights that character; at the
+bottom, the seconds left. An attack button picks it; when the ten seconds end, the stage
+under the cursor is taken. The "?" portrait keeps the stage the game picks at random. The game then goes on as usual (the speed menu, if the operator
 allows it, then the VS screen).
 
 The challenger is the player who joined last; when both started the match together, the
 second of the two to pick a character.
+
+The cursor starts on "?" for a new challenger (and when both start together), and on
+the last stage chosen when the challenger is the loser of a versus who continues (he
+pressed start during his continue countdown).
 
 | Portrait | Stage |
 |---|---|
@@ -40,7 +44,8 @@ The code and how the game does it: `tools/build/versus_stage.py`.
 | Navigation | `0x1fe2c` joystick bits -> direction, `0x1588e` 8 bytes a cell: the cell in each direction |
 | Stage names | frames of type 4 (letters), pointers at `0x2a0a96` + 2 * stage; letter A is tile 0x49b1 |
 | VS screen | scene at `0x8a9c`: `$e(a5)` frames (0x3c, then 0x7f), ended early by `0x9526` (any button; for player 2 any input) |
-| vsav2e's state | RAM ff83f0-ff83f8, unused by the game: see `versus_stage.py` |
+| vsav2e's state | RAM ff83f0-ff83f8 during the select screen (the game clears it as fights start), ff9000 and ff8c80 for the last stage chosen: see `versus_stage.py` |
+| Continue | player `$38c` the continue countdown, `$383` set when the player continued (cleared when he loses) |
 | Players' input | `$58(a5)`/`$5a(a5)` player 1 now/before, `$5c`/`$5e` player 2; in a player object, `$394` now and `$396` before (bit 0 right, bit 1 left) |
 | Players together | `$ac(a5)`: bit 0 player 1, bit 1 player 2 |
 

@@ -43,7 +43,10 @@ screen with all 18, laid out like the PlayStation game's (`docs/roster.md`).
 Names: the Western ones (Jon Talbain, Rikuo, Lord Raptor, B.B. Hood, Hsien-Ko, Huitzil).
 
 Versus: after picking his character, the challenger picks the stage with the portraits
-(each character's stage; "?" random; `docs/versus.md`).
+(each character's stage; "?" random; ten seconds; a loser who continues starts from the
+last stage; `docs/versus.md`).
+
+Language: English by default, Japanese from the service menu (`docs/text.md`).
 
 ![](screenshots/versus_stage_select.png)
 

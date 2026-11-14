@@ -8,9 +8,14 @@ number from 0 to 0x18, chosen as the VS screen starts.
 vsav2e lets the challenger choose it with the portraits of the select screen: after he
 has picked his character, his cursor stays on the grid and the top of the screen shows
 "SELECT STAGE" and, under it, the name of the stage of the character under the cursor
-(the stage where the one-player game fights that character). An attack button picks it; the "?" portrait keeps the
-game's random stage. Then the game goes on as after any choice (the speed menu, if the
-operator allows it, then the VS screen).
+(the stage where the one-player game fights that character), and at the bottom the
+seconds left. An attack button picks it, or the end of the ten seconds the portrait
+under the cursor; the "?" portrait keeps the game's random stage. Then the game goes on
+as after any choice (the speed menu, if the operator allows it, then the VS screen).
+
+Where the cursor starts: on the portrait of the last stage chosen when the challenger
+continues a versus he lost (he pressed start during his continue countdown: his `$383`
+is set), on "?" otherwise (a new challenger, or both players starting together).
 
 Who chooses: the player who joined last (`$8d(a5)`, the players who pressed start for
 this match, is 1 or 2), or, when both started the match together (3), the one of the two
@@ -32,9 +37,11 @@ buttons count; `$394`/`$396` the inputs now and the frame before):
 - the names are shown by a stage name object (class 07, kind 0x1a: the object of the
   one-player map screen), given vsav2e's own work on each frame: it draws the frame of
   the cell in the stage mode state, and removes itself when the state is cleared;
-- at the VS screen (`0x970a`) the chosen stage replaces the random one.
+- at the VS screen (`0x970a`) the chosen stage replaces the random one, and its cell is
+  kept for a rematch.
 
-The state lives in RAM that the game does not use (ff83f0-ff83f8, a5 + 0x3f0).
+The state lives in RAM that the game does not use: ff83f0-ff83f8 during the select
+screen, ff9000 and ff8c80 for the last stage chosen.
 """
 import struct
 
@@ -46,6 +53,13 @@ SAVED_CHARACTER = 0x3f3                 # byte: the chooser's character
 SAVED_BUTTONS = 0x3f4                   # word: the buttons that picked the character
 CHOSEN_STAGE = 0x3f6                    # word: the stage, or -1 for the random one
 CHOOSER = 0x3f8                         # byte: the chooser, 0 player 1, 1 player 2
+# kept from a match to the next, in bytes that the game never writes (checked across
+# select screens and fights; ff83f0 is cleared as a fight starts, and so is ff9001)
+LAST_VALID = 0x1000                     # byte: 1 once a stage has been chosen
+LAST_CELL = 0x0c80                      # byte: the cell of the last stage chosen
+# fields of a player object
+TIMER_SECONDS = 0x26
+CONTINUED = 0x383                       # set while the player plays on a continue
 
 # the select screen: the cursor routine of a player, the confirmation of a character
 CURSOR_ROUTINE = 0x1f5e6
@@ -118,6 +132,11 @@ SCREEN_Y_OFFSET = 216
 HEADER_TOP = 2
 NAME_TOP = 19
 MAX_LINE_WIDTH = 190
+# the seconds left: at the bottom, between the names of the two characters
+COUNTDOWN_TOP = 206
+NO_COUNTDOWN = STAGE_SECONDS + 1        # the row of frames without it (stage chosen)
+DIGIT_0 = 0x07a4                        # the digits of the font, 0 to 9
+DIGIT_STEP = 11                         # x from a digit to the next (narrower than letters)
 
 
 def encode_line(text):
@@ -136,13 +155,21 @@ def line_width(line):
     return line[-1][0] - line[0][0] + LETTER_STEP
 
 
-def letters_frame(lines):
+def digits_line(number):
+    """a number as a line of text"""
+    return [(DIGIT_STEP * index, DIGIT_0 + int(digit)) for index, digit in enumerate(str(number))]
+
+
+def letters_frame(lines, countdown=None):
     """A type 4 frame of lines of text (lists of (x, tile)), each centred, one under
     the other from the top of the screen: the first line at HEADER_TOP, the others from
-    NAME_TOP."""
+    NAME_TOP; then the countdown line, if any, at COUNTDOWN_TOP."""
+    placed = [(line, HEADER_TOP if index == 0 else NAME_TOP + LINE_HEIGHT * (index - 1))
+              for index, line in enumerate(lines)]
+    if countdown is not None:
+        placed.append((countdown, COUNTDOWN_TOP))
     records = []
-    for index, line in enumerate(lines):
-        top = HEADER_TOP if index == 0 else NAME_TOP + LINE_HEIGHT * (index - 1)
+    for line, top in placed:
         left = line[0][0]
         width = line_width(line)
         for x, tile in line:
@@ -285,7 +312,16 @@ def select_routines(stage_of_cell):
         '1b7c0001%04x' % STATE +                        # move.b  #1, STATE(a5)
         '1b41%04x' % CHOOSER +                          # move.b  d1, CHOOSER(a5)
         '1b6e0003%04x' % SAVED_CELL +                   # move.b  $3(a6), SAVED_CELL(a5)
-        '1b6e0003%04x' % STAGE_CELL +                   # move.b  $3(a6), STAGE_CELL(a5)
+        # the cursor starts on "?", or on the last stage for a player who continues
+        '74%02x' % RANDOM_CELL +                        # moveq   #random, d2
+        '4a2d%04x' % LAST_VALID +                       # tst.b   LAST_VALID(a5)
+        '670a'                                          # beq.s   start
+        '4a2e%04x' % CONTINUED +                        # tst.b   $383(a6)
+        '6704'                                          # beq.s   start
+        '142d%04x' % LAST_CELL +                        # move.b  LAST_CELL(a5), d2
+        # start:
+        '1d420003'                                      # move.b  d2, $3(a6)
+        '1b42%04x' % STAGE_CELL +                       # move.b  d2, STAGE_CELL(a5)
         '1b6e0382%04x' % SAVED_CHARACTER +              # move.b  $382(a6), SAVED_CHARACTER(a5)
         '3b40%04x' % SAVED_BUTTONS +                    # move.w  d0, SAVED_BUTTONS(a5)
         '1d7c%04x0026' % STAGE_SECONDS +                # move.b  #seconds, $26(a6)
@@ -304,11 +340,27 @@ def name_frame_routine(steps):
     """The stage name object's work on each frame."""
     return bytes.fromhex(
         '0c6e%04x%04x' % (MARK, MARK_FIELD) +           # cmpi.w  #MARK, MARK(a6)
-        '6638'                                          # bne.s   game
+        '6662'                                          # bne.s   game
         '4a2d%04x' % STATE +                            # tst.b   STATE(a5)
-        '6726'                                          # beq.s   remove
+        '6750'                                          # beq.s   remove
         '7200'                                          # moveq   #0, d1
         '122d%04x' % STAGE_CELL +                       # move.b  STAGE_CELL(a5), d1
+        # the row of steps: the chooser's seconds left in stage mode, else none
+        '74%02x' % NO_COUNTDOWN +                       # moveq   #no countdown, d2
+        '0c2d0001%04x' % STATE +                        # cmpi.b  #1, STATE(a5)
+        '661a'                                          # bne.s   row
+        '41ed0400'                                      # lea     $400(a5), a0     player 1
+        '4a2d%04x' % CHOOSER +                          # tst.b   CHOOSER(a5)
+        '6704'                                          # beq.s   chooser
+        '41ed0800'                                      # lea     $800(a5), a0     player 2
+        # chooser:
+        '1428%04x' % TIMER_SECONDS +                    # move.b  $26(a0), d2
+        '0c02%04x' % STAGE_SECONDS +                    # cmpi.b  #seconds, d2
+        '6302'                                          # bls.s   row
+        '74%02x' % STAGE_SECONDS +                      # moveq   #seconds, d2
+        # row:
+        'c4fc%04x' % CELLS +                            # mulu.w  #cells, d2
+        'd242'                                          # add.w   d2, d1
         'e749'                                          # lsl.w   #3, d1           8 bytes a step
         '41f9%08x' % steps +                            # lea     steps, a0
         'd0c1'                                          # adda.w  d1, a0
@@ -333,7 +385,12 @@ STAGE_APPLY_ROUTINE = bytes.fromhex(
     '4a6d%04x' % CHOSEN_STAGE +                         # tst.w   CHOSEN_STAGE(a5)
     '6b04'                                              # bmi.s   set              random
     '302d%04x' % CHOSEN_STAGE +                         # move.w  CHOSEN_STAGE(a5), d0
-    # set:
+    # set: the cell is kept for a rematch
+    '0c2d0002%04x' % STATE +                            # cmpi.b  #2, STATE(a5)
+    '660c'                                              # bne.s   clear
+    '1b6d%04x%04x' % (STAGE_CELL, LAST_CELL) +          # move.b  STAGE_CELL(a5), LAST_CELL(a5)
+    '1b7c0001%04x' % LAST_VALID +                       # move.b  #1, LAST_VALID(a5)
+    # clear:
     '422d%04x' % STATE +                                # clr.b   STATE(a5)
     '3b400100'                                          # move.w  d0, $100(a5)     as the game did
     '4e75')                                             # rts
@@ -354,12 +411,19 @@ def apply(vsav2e, extension, free_space_start, free_space_end):
     """Adds the stage choice to the vsav2e program (a bytearray); the frames go to the
     program extension. Returns the first free address of the program."""
     header = encode_line('SELECT STAGE')
-    frames = {RANDOM: extension.add(letters_frame([header, encode_line('RANDOM')]))}
+    name_lines = {RANDOM: [encode_line('RANDOM')]}
     for stage in sorted(set(STAGE_OF_CHARACTER.values())):
-        frames[stage] = extension.add(letters_frame([header] + wrap(stage_name_words(vsav2e, stage))))
-    # for each cell: an animation step (4 bytes, then the frame pointer), the stage
+        name_lines[stage] = wrap(stage_name_words(vsav2e, stage))
+    # a frame for each stage and each second left (the row NO_COUNTDOWN: none)
+    frames = {}
+    for stage, lines in name_lines.items():
+        for row in range(NO_COUNTDOWN + 1):
+            countdown = None if row == NO_COUNTDOWN else digits_line(row)
+            frames[stage, row] = extension.add(letters_frame([header] + lines, countdown))
+    # for each row and each cell: an animation step (4 bytes, then the frame pointer)
     stage_of_cell = [STAGE_OF_CHARACTER.get(cell, RANDOM) for cell in range(CELLS)]
-    steps = extension.add(b''.join(struct.pack('>II', 0, frames[stage]) for stage in stage_of_cell))
+    steps = extension.add(b''.join(struct.pack('>II', 0, frames[stage, row])
+                                   for row in range(NO_COUNTDOWN + 1) for stage in stage_of_cell))
     stages = extension.add(bytes(stage & 0xff for stage in stage_of_cell))
 
     select, confirm_offset = select_routines(stages)

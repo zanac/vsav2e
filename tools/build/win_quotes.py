@@ -10,7 +10,10 @@ quotes of Vampire Savior, so their English quotes are taken as they are. The ste
   3. gives Jon Talbain, Rikuo and Sasquatch (not selectable in vsav2, their ids share
      another character's block) their own English quotes from `vsav`;
   4. writes the new master table in free ROM space and points the English, Spanish and
-     Portuguese entries of the language table at it.
+     Portuguese entries of the language table at it;
+  5. writes a Japanese master table too, vsav2's with the Japanese quotes of Jon
+     Talbain, Rikuo and Sasquatch from `vsav`, for the operator who chooses Japanese
+     (the two games write their quotes with the same codes).
 
 Characters with quotes written for Vampire Savior 2 (Huitzil, Pyron, Donovan) have no
 English in `vsav`: theirs is our translation, text/vsav2_win_quotes_en.py.
@@ -23,7 +26,7 @@ from cps2 import quotes
 
 # vsav2: the language table (4 long pointers) and its only, Japanese, master table
 VSAV2_LANGUAGE_TABLE = 0xf954
-ENGLISH, SPANISH, PORTUGUESE = 1, 2, 3
+JAPANESE, ENGLISH, SPANISH, PORTUGUESE = 0, 1, 2, 3
 
 # vsav (Europe): the master tables of the win quotes
 VSAV_JAPANESE_MASTER_TABLE = 0x32d196
@@ -70,10 +73,18 @@ def apply(vsav2_program, vsav_program, free_space_address, free_space_end):
                 untranslated_ids.append(character_id)
         english_blocks.append(block_cache[block_address])
 
-    data = quotes.encode_master_table(english_blocks)
-    if free_space_address + len(data) > free_space_end:
-        raise SystemExit('win quotes: no room')
-    vsav2_program[free_space_address:free_space_address + len(data)] = data
-    for language in (ENGLISH, SPANISH, PORTUGUESE):
-        struct.pack_into('>I', vsav2_program, VSAV2_LANGUAGE_TABLE + 4 * language, free_space_address)
-    return free_space_address + len(data), untranslated_ids
+    japanese_blocks = [savior_japanese[character_id] if character_id in ONLY_IN_SAVIOR_1
+                       else quotes.read_block(vsav2_program, block_address)
+                       for character_id, block_address in enumerate(
+                           quotes.read_master_table(vsav2_program, japanese_table_address))]
+
+    for blocks, languages in ((english_blocks, (ENGLISH, SPANISH, PORTUGUESE)),
+                              (japanese_blocks, (JAPANESE,))):
+        data = quotes.encode_master_table(blocks)
+        if free_space_address + len(data) > free_space_end:
+            raise SystemExit('win quotes: no room')
+        vsav2_program[free_space_address:free_space_address + len(data)] = data
+        for language in languages:
+            struct.pack_into('>I', vsav2_program, VSAV2_LANGUAGE_TABLE + 4 * language, free_space_address)
+        free_space_address += len(data) + (len(data) & 1)
+    return free_space_address, untranslated_ids

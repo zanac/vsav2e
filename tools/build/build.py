@@ -15,11 +15,19 @@ REGION_EUROPE = 0x000a
 
 # The language of the win quotes and endings is a byte of the operator settings (copied
 # to $93(a5) at 0x1a5c by `move.b $8(a4), $93(a5)`): 0 Japanese, 2 English, 4 Spanish,
-# 6 Portuguese. Vampire Savior 2 has no menu to change it, so the copy is replaced by
-# `move.b #2, $93(a5)`: always English.
-LANGUAGE_COPY_ADDRESS = 0x1a5c
-LANGUAGE_COPY_ORIGINAL = bytes.fromhex('1b6c00080093')
-LANGUAGE_ALWAYS_ENGLISH = bytes.fromhex('1b7c00020093')
+# 6 Portuguese, chosen in the service menu (7. CONFIGURATION, LANGUAGE). Europe's factory
+# setting is English; Spanish and Portuguese show the English texts.
+#
+# The menu item (0xe57a) goes through the word $92(a5) (the high byte 0, the language
+# low) from d1 = 2 to 4: English and Spanish. vsav2e offers Japanese and English: the
+# lowest choice becomes 0, the highest 2, and the test that wraps below the lowest
+# becomes signed (`bcc` -> `bpl`), as 0 - 2 is not below 0 unsigned.
+LANGUAGE_MENU_PATCHES = (
+    (0xe584, '7202', '7200'),           # moveq #2, d1         lowest choice: Japanese
+    (0xe594, '6402', '6a02'),           # bcc.s -> bpl.s       below the lowest: wrap
+    (0xe596, '7404', '7402'),           # moveq #4, d2         to the highest: English
+    (0xe5a0, '0c420004', '0c420002'),   # cmpi.w #4, d2        above the highest: wrap
+)
 
 # The decrypted set carries the "Phoenix Edition" boot menu (code at 0xff000, called at
 # 0x110c right after the region is set). It reads its own region choice from the EEPROM
@@ -59,10 +67,11 @@ def build(rom_directory, captures_directory):
 
     struct.pack_into('>H', vsav2e, REGION_WORD_ADDRESS, REGION_EUROPE)
 
-    end = LANGUAGE_COPY_ADDRESS + len(LANGUAGE_COPY_ORIGINAL)
-    if vsav2e[LANGUAGE_COPY_ADDRESS:end] != LANGUAGE_COPY_ORIGINAL:
-        raise SystemExit('unexpected code at the language copy: not the vsav2d program')
-    vsav2e[LANGUAGE_COPY_ADDRESS:end] = LANGUAGE_ALWAYS_ENGLISH
+    for address, original, patched in LANGUAGE_MENU_PATCHES:
+        original, patched = bytes.fromhex(original), bytes.fromhex(patched)
+        if vsav2e[address:address + len(original)] != original:
+            raise SystemExit('unexpected code at the language menu 0x%x' % address)
+        vsav2e[address:address + len(patched)] = patched
 
     end = PHOENIX_MENU_CALL_ADDRESS + len(PHOENIX_MENU_CALL_ORIGINAL)
     if vsav2e[PHOENIX_MENU_CALL_ADDRESS:end] != PHOENIX_MENU_CALL_ORIGINAL:

@@ -14,6 +14,11 @@
         .equ SAVED_BUTTONS, 0x3f4
         .equ CHOSEN_STAGE, 0x3f6
         .equ CHOOSER, 0x3f8
+        .equ LAST_VALID, 0x1000
+        .equ LAST_CELL, 0x0c80
+        .equ CELLS, 0x14
+        .equ RANDOM_CELL, 0x0b
+        .equ NO_COUNTDOWN, 11
         .equ MARK, 0x5354
         .equ MARK_FIELD, 0x40
         .text
@@ -105,7 +110,14 @@ chooser:
         move.b  #1, STATE(%a5)
         move.b  %d1, CHOOSER(%a5)
         move.b  3(%a6), SAVED_CELL(%a5)
-        move.b  3(%a6), STAGE_CELL(%a5)
+        moveq   #RANDOM_CELL, %d2
+        tst.b   LAST_VALID(%a5)
+        beq.s   12f
+        tst.b   0x383(%a6)
+        beq.s   12f
+        move.b  LAST_CELL(%a5), %d2
+12:     move.b  %d2, 3(%a6)
+        move.b  %d2, STAGE_CELL(%a5)
         move.b  0x382(%a6), SAVED_CHARACTER(%a5)
         move.w  %d0, SAVED_BUTTONS(%a5)
         move.b  #STAGE_SECONDS, 0x26(%a6)
@@ -124,6 +136,19 @@ name_frame:
         beq.s   9f
         moveq   #0, %d1
         move.b  STAGE_CELL(%a5), %d1
+        moveq   #NO_COUNTDOWN, %d2
+        cmpi.b  #1, STATE(%a5)
+        bne.s   14f
+        lea     0x400(%a5), %a0
+        tst.b   CHOOSER(%a5)
+        beq.s   13f
+        lea     0x800(%a5), %a0
+13:     move.b  0x26(%a0), %d2
+        cmpi.b  #10, %d2
+        bls.s   14f
+        moveq   #10, %d2
+14:     mulu.w  #CELLS, %d2
+        add.w   %d2, %d1
         lsl.w   #3, %d1
         lea     STEPS, %a0
         adda.w  %d1, %a0
@@ -145,6 +170,10 @@ stage_apply:
         tst.w   CHOSEN_STAGE(%a5)
         bmi.s   11f
         move.w  CHOSEN_STAGE(%a5), %d0
-11:     clr.b   STATE(%a5)
+11:     cmpi.b  #2, STATE(%a5)
+        bne.s   15f
+        move.b  STAGE_CELL(%a5), LAST_CELL(%a5)
+        move.b  #1, LAST_VALID(%a5)
+15:     clr.b   STATE(%a5)
         move.w  %d0, 0x100(%a5)
         rts

@@ -31,11 +31,21 @@ DIALOGUE_LINE_LENGTH = 30
 
 
 # The ending centres each line by moving its start left by (letters - 1) * 8 pixels
-# (`asl.w #3, d0` at 0x8b246), right for the 16-pixel kanji but twice too much for the
-# Western letters, which advance 8 pixels: the shift becomes `asl.w #2, d0`.
-ENDING_CENTRING_SHIFT_ADDRESS = 0x8b246
-ENDING_CENTRING_SHIFT_ORIGINAL = bytes.fromhex('e740')     # asl.w #3, d0
-ENDING_CENTRING_SHIFT_WESTERN = bytes.fromhex('e540')      # asl.w #2, d0
+# (`move.w d5, d0` / `asl.w #3, d0` / `sub.w d0, $10(a6)` at 0x8b244), right for the
+# 16-pixel kanji but twice too much for the Western letters, which advance 8 pixels. The
+# language is chosen by the operator, so the three instructions become a call to a
+# routine that shifts by 4 pixels a letter, by 8 when the language ($93(a5)) is Japanese.
+ENDING_CENTRING_ADDRESS = 0x8b244
+ENDING_CENTRING_ORIGINAL = bytes.fromhex('3005e740916e0010')
+ENDING_CENTRING_ROUTINE = bytes.fromhex(
+    '3005'          # move.w  d5, d0           letters - 1
+    'e540'          # asl.w   #2, d0           4 pixels a letter
+    '4a2d0093'      # tst.b   $93(a5)          the language: 0 Japanese
+    '6602'          # bne.s   shift
+    'd040'          # add.w   d0, d0           8 pixels a kanji
+    # shift:
+    '916e0010'      # sub.w   d0, $10(a6)
+    '4e75')         # rts
 
 
 def latin_codes(vsav_program):
@@ -87,10 +97,13 @@ def check_same_shape(vsav2_program, table_address, blocks, name):
 def apply(vsav2_program, vsav_program, free_space_address, free_space_end):
     """writes the English tables at free_space_address; returns the address after them"""
     code_of = latin_codes(vsav_program)
-    end = ENDING_CENTRING_SHIFT_ADDRESS + len(ENDING_CENTRING_SHIFT_ORIGINAL)
-    if vsav2_program[ENDING_CENTRING_SHIFT_ADDRESS:end] != ENDING_CENTRING_SHIFT_ORIGINAL:
+    end = ENDING_CENTRING_ADDRESS + len(ENDING_CENTRING_ORIGINAL)
+    if vsav2_program[ENDING_CENTRING_ADDRESS:end] != ENDING_CENTRING_ORIGINAL:
         raise SystemExit('story text: unexpected code at the ending centring')
-    vsav2_program[ENDING_CENTRING_SHIFT_ADDRESS:end] = ENDING_CENTRING_SHIFT_WESTERN
+    vsav2_program[free_space_address:free_space_address + len(ENDING_CENTRING_ROUTINE)] = ENDING_CENTRING_ROUTINE
+    vsav2_program[ENDING_CENTRING_ADDRESS:end] = (b'\x4e\xb9' + struct.pack('>I', free_space_address)
+                                                  + b'\x4e\x71')      # jsr routine / nop
+    free_space_address += len(ENDING_CENTRING_ROUTINE)
     for language_table, name, maximum_line_length, blocks in (
             (ENDINGS_LANGUAGE_TABLE, 'endings', ENDING_LINE_LENGTH,
              [vsav2_story_en.ENDING, vsav2_story_en.ENDING_JEDAH]),
