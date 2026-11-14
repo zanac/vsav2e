@@ -16,6 +16,8 @@ This repository is private: it also holds material taken from the PlayStation ga
 | `docs/analysis.md` | measurements of the two ROM sets: what differs, what each character weighs, what can be freed |
 | `make_vsav2e.py` | builds `vsav2e.zip` (program, program extension, upper sprite bank, sound program, second half of the samples) from `vsav2.zip`, `vsav.zip` and `vhunt2.zip` |
 | `docs/versus.md` | the stage choice of a versus match |
+| `docs/endings.md` | Vampire Savior's per-character endings, moved into vsav2e |
+| `tools/dev/endings/` | the analysis that makes `tools/build/endings_recipe.py` (needs capstone) |
 | `docs/roster.md` | how Jon Talbain, Rikuo and Sasquatch are put back, the hardware it takes, how it is tested |
 | `tools/build/` | the build steps (region, language, win quotes, endings, roster, select screen, title screen, sound, names, versus stage) |
 | `tools/dev/*.s` | GNU as sources of the routines the build writes as hex, to check them |
@@ -36,7 +38,9 @@ This repository is private: it also holds material taken from the PlayStation ga
 Done: English win quotes, endings and Jedah's speech; European region; Jon Talbain,
 Rikuo and Sasquatch playable and fought as opponents, with their voices; the select
 screen with all 18, laid out like the PlayStation game's (`docs/roster.md`); the
-PlayStation Darkstalkers 3 title screen, with its zoom and flash (`docs/title.md`).
+PlayStation Darkstalkers 3 title screen, with its zoom and flash (`docs/title.md`); the
+per-character endings of Vampire Savior for 14 characters, then Vampire Savior 2's staff
+credits (`docs/endings.md`; their music is still Vampire Savior 2's).
 
 ![](screenshots/title.png)
 

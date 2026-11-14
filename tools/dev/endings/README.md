@@ -1,9 +1,9 @@
-# Endings port: working prototype
+# Endings port: the analysis
 
-Work in progress: bringing Vampire Savior's per-character endings into vsav2e. These
-scripts are the prototype; they still use absolute paths of the development machine
-(`/tmp/claude-0/vs/...`) and need `capstone` and `numpy`. The build (`make_vsav2e.py`)
-does not use them yet.
+The analysis behind `tools/build/endings_recipe.py` (see `docs/endings.md`).
+`gen_recipe.py` writes the recipe; the build only applies it. These scripts were the
+prototype: they use absolute paths of the development machine (`/tmp/claude-0/vs/...`)
+and need `capstone` and `numpy`.
 
 ## How it works
 
@@ -34,10 +34,9 @@ program extension and relocated, instead of being rewritten:
    selected by bits 0-2 of the word at 0x8040c0). The game mode of the ending jumps to a
    dispatcher: characters 00-0a and 0c-0e play Vampire Savior's ending, then Savior 2's
    staff credits; the others play Savior 2's ending.
-7. `mkzip.py`: builds a test vsav2e.zip with the endings.
-
-Status: B.B. Hood's ending plays like the arcade one, then the credits, ranking and
-attract mode. Other characters are being checked.
+7. `mkzip.py`: builds a test vsav2e.zip with the prototype (the build now gives the
+   same zip).
+8. `gen_recipe.py`: writes the recipe.
 
 Things learnt:
 - CPS2 scroll tiles start 8 MB into the graphics (`bank_scroll` 4 in MAME's CPS2 config).

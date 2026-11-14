@@ -3,13 +3,15 @@
 
 Builds vsav2e.zip, Darkstalkers 3: the English full-roster Vampire Savior 2, from the MAME sets in
 ROM_DIRECTORY: vsav2.zip (with its decrypted clone vsav2d inside), vsav.zip (Vampire
-Savior, Europe: the English texts) and vhunt2.zip (Vampire Hunter 2: Jon Talbain, Rikuo
-and Sasquatch).
+Savior, Europe, with its decrypted clone vsavd inside: the English texts and the
+per-character endings) and vhunt2.zip (Vampire Hunter 2: Jon Talbain, Rikuo and
+Sasquatch).
 
 The zip holds what vsav2e has more than its parent vsav2: the program (eight chips and
 the extension at 0x400000), four sprite ROMs (the ones of Vampire Hunter 2 that differ
 from Vampire Savior 2's, with the new tiles of the select screen in their empty space),
-the sound program and the two sample ROMs of Vampire Hunter 2, copied as they are.
+the four chips of the scroll bank (the scroll tiles of the endings), the sound program
+and the two sample ROMs of Vampire Hunter 2, copied as they are.
 
 The select screen is laid out like the PlayStation Darkstalkers 3's and takes its three
 new cells from captures of it: assets/psx/select/*.png, next to this script. The title
@@ -32,6 +34,7 @@ PROGRAM_CHIP_NAMES = ['vs2e.03', 'vs2e.04', 'vs2e.05', 'vs2e.06', 'vs2e.07', 'vs
 PROGRAM_EXTENSION_NAME = 'vs2e.10x'
 # the upper sprite bank: Vampire Hunter 2's vh2.13m, .15m, .17m and .19m, changed
 UPPER_SPRITE_BANK_NAMES = ['vs2e.21m', 'vs2e.23m', 'vs2e.25m', 'vs2e.27m']
+SCROLL_BANK_NAMES = ['vs2e.29m', 'vs2e.31m', 'vs2e.33m', 'vs2e.35m']
 SOUND_PROGRAM_NAMES = ['vs2e.01', 'vs2e.02']
 # the second 8 MB of QSound samples: Vampire Hunter 2's
 HUNTER_SAMPLE_ROMS = ['vh2.11m', 'vh2.12m']
@@ -43,10 +46,11 @@ def main():
         sys.exit(__doc__)
     rom_directory = sys.argv[1]
     output_directory = sys.argv[2] if len(sys.argv) > 2 else '.'
-    main_program, extension, upper_sprite_bank, sound_program = build.build(rom_directory, PSX_DIRECTORY)
+    main_program, extension, upper_sprite_bank, scroll_bank, sound_program = build.build(rom_directory, PSX_DIRECTORY)
     files = list(zip(PROGRAM_CHIP_NAMES, program.split_program(main_program)))
     files.append((PROGRAM_EXTENSION_NAME, program.swap_byte_pairs(extension)))
     files.extend(zip(UPPER_SPRITE_BANK_NAMES, upper_sprite_bank))
+    files.extend(zip(SCROLL_BANK_NAMES, scroll_bank))
     half = len(sound_program) // 2
     files.extend(zip(SOUND_PROGRAM_NAMES, (sound_program[:half], sound_program[half:])))
     with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:

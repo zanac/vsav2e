@@ -4,7 +4,7 @@ import struct
 import zipfile
 
 from cps2 import program, sprite_rom
-from build import names, roster, select_screen, sound, story_text, title_screen, versus_stage, win_quotes
+from build import endings, names, roster, select_screen, sound, story_text, title_screen, versus_stage, win_quotes
 from build.extension import EXTENSION_START, Extension
 
 # The region is an immediate word in the boot code (`move.w #region, $90(a5)` at
@@ -103,6 +103,15 @@ def build(rom_directory, psx_directory):
                                               os.path.join(psx_directory, 'title'), select_end, FREE_SPACE_END)
     versus_end = versus_stage.apply(vsav2e, extension, title_end, FREE_SPACE_END, logo_work)
     print('versus stage choice: 0x%x-0x%x' % (title_end, versus_end))
+
+    # the endings: Vampire Savior's code, from its decrypted program
+    savior_code = program.load_program('vsavd', rom_directory)
+    endings_start = (extension.end() + 0xff) & ~0xff
+    with zipfile.ZipFile(os.path.join(rom_directory, 'vsav.zip')) as savior_archive:
+        endings_end, scroll_bank = endings.apply(vsav2e, savior_code, savior_archive, extension.data,
+                                                 EXTENSION_START, endings_start, upper_bank)
+    extension.used = endings_end - EXTENSION_START
+    print('endings: 0x%x-0x%x' % (endings_start, endings_end))
     print('program extension: 0x%x-0x%x' % (EXTENSION_START, extension.end()))
 
     with zipfile.ZipFile(os.path.join(rom_directory, 'vsav2.zip')) as savior_archive:
@@ -110,4 +119,5 @@ def build(rom_directory, psx_directory):
     with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:
         hunter_sound = hunter_archive.read('vh2.01') + hunter_archive.read('vh2.02')
     sound_program = sound.apply(savior_sound, hunter_sound)
-    return bytes(vsav2e), bytes(extension.data), [bytes(chip) for chip in upper_bank.chips], sound_program
+    return (bytes(vsav2e), bytes(extension.data), [bytes(chip) for chip in upper_bank.chips],
+            [bytes(chip) for chip in scroll_bank], sound_program)

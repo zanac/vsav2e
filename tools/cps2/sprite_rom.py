@@ -102,3 +102,30 @@ class SpriteRoms:
                 code = (tile & ~0xf) + ((tile + column) & 0xf) + 0x10 * row
                 self.write_tile(code, [line[column * TILE_SIZE:(column + 1) * TILE_SIZE]
                                        for line in pens[row * TILE_SIZE:(row + 1) * TILE_SIZE]])
+
+
+def _raw_offset(byte_offset):
+    """where an 8-byte word of the unshuffled graphics is, in each of the four chips"""
+    word = byte_offset // WORD_BYTES
+    bank_start = word - word % BANK_WORDS
+    return 2 * (bank_start + shuffled_word(word % BANK_WORDS))
+
+
+def read_raw(chips, byte_offset, length):
+    """bytes of the graphics as MAME sees them once unshuffled (a 16x16 tile is 128 bytes,
+    an 8x8 one 64, a 32x32 one 512), from four chips of 16 MB; offset and length are
+    multiples of 8"""
+    out = bytearray()
+    for offset in range(byte_offset, byte_offset + length, WORD_BYTES):
+        position = _raw_offset(offset)
+        for chip in chips:
+            out += chip[position:position + 2]
+    return bytes(out)
+
+
+def write_raw(chips, byte_offset, data):
+    """the other way round: writes unshuffled bytes into four chips (bytearrays)"""
+    for index in range(0, len(data), WORD_BYTES):
+        position = _raw_offset(byte_offset + index)
+        for chip_index, chip in enumerate(chips):
+            chip[position:position + 2] = data[index + 2 * chip_index:index + 2 * chip_index + 2]

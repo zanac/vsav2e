@@ -72,6 +72,10 @@ already in mame2003-plus), and nothing else of it:
 - 64 MB of sprite ROM, bit 12 of the sprite Y selecting the upper half;
 - 16 MB of QSound samples (the chip addresses 256 banks of 64 KB; CPS2 games use half).
 
+And two things of its own, for the endings (`docs/endings.md`): the program extension is
+2 MB, and a scroll bank of 16 MB of graphics after the sprites, which the scroll layers
+read while bits 0-2 of the word written to `0x8040c0` are set.
+
 mame2003-plus: `MACHINE_DRIVER( vsav2e )` in `src/drivers/cps2.c` (branch `vsav2e` of the
 fork).
 

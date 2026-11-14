@@ -272,9 +272,17 @@ class Port:
 
     def patch_code(self, image, image_base):
         """copies the code ranges into image (bytearray at image_base) and relocates them"""
+        self.patches = []                 # (vsav address, size, 'moved' or 'value', vsav address or value)
+
         def put(addr_vsav, size, value):
             n = self.new_address(addr_vsav) - image_base
             image[n:n + size] = value.to_bytes(size, 'big')
+            # what the build needs: a moved address is given as its vsav address
+            original = int.from_bytes(P[addr_vsav:addr_vsav + size], 'big')
+            if size == 4 and self.new_address(original) == value and original != value:
+                self.patches.append((addr_vsav, 4, 'moved', original))
+            elif value != original:
+                self.patches.append((addr_vsav, size, 'value', value))
 
         for s, e, n in self.place[:len(CODE_RANGES)]:
             image[n - image_base:n - image_base + e - s] = P[s:e]

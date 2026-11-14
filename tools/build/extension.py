@@ -5,7 +5,7 @@ of `roster.py` selects it by the address of the frame.
 """
 
 EXTENSION_START = 0x400000
-EXTENSION_SIZE = 0x80000
+EXTENSION_SIZE = 0x200000              # 2 MB: 0x400000-0x5fffff
 
 
 class Extension:
