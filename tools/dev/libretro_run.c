@@ -17,7 +17,8 @@
    POKES        "first-last:address:value;..." (hexadecimal address and value): the byte
                 is written to the 68000 memory on every frame from first to last
    DUMPS        frames at which memory is saved: OUT<frame>_sprites.bin (the sprite list,
-                0x708000-0x709fff), OUT<frame>_palettes.bin (0x90c000-0x90c3ff) and
+                0x708000-0x709fff), OUT<frame>_palettes.bin (0x90c000-0x90c3ff), OUT<frame>_gfxram.bin
+               (0x900000-0x92ffff: scroll layers and all palette pages) and
                 OUT<frame>_ram.bin (0xff8000-0xffbfff), OUT<frame>_wram.bin (all the
                 work RAM, 0xff0000-0xffffff)
    AUTOWIN      from this frame on, player 1 keeps full vitality and player 2 has none
@@ -439,6 +440,7 @@ int main(int argc, char **argv)
                 dump_memory(read8, 0x90c000, 0x90c400, "palettes");
                 dump_memory(read8, 0xff8000, 0xffc000, "ram");
                 dump_memory(read8, 0xff0000, 0x1000000, "wram");
+                dump_memory(read8, 0x900000, 0x930000, "gfxram");
             }
     }
     if (audio_file) {

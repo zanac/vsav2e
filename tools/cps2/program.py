@@ -20,6 +20,9 @@ PROGRAM_CHIPS = {
     'vhunt2': ['vh2j.03a', 'vh2j.04a', 'vh2j.05', 'vh2j.06', 'vh2j.07', 'vh2j.08', 'vh2j.09', 'vh2j.10'],
     # Vampire Savior (Europe): Capcom's own English texts for the Savior roster
     'vsav': ['vm3e.03d', 'vm3e.04d', 'vm3.05a', 'vm3.06a', 'vm3.07b', 'vm3.08a', 'vm3.09b', 'vm3.10b'],
+    # its decrypted clone (Phoenix Edition): the code of the first 1 MB can be read
+    'vsavd': ['vsavd/vm3ed.03d', 'vsavd/vm3ed.04d', 'vm3.05a', 'vm3.06a', 'vm3.07b', 'vm3.08a', 'vm3.09b',
+              'vm3.10b'],
     # Vampire Savior (Japan): the Japanese texts the English ones translate
     'vsavj': ['vsavj/vm3j.03d', 'vsavj/vm3j.04d', 'vsavj/vm3j.05a', 'vsavj/vm3j.06b',
               'vsavj/vm3j.07b', 'vsavj/vm3j.08a', 'vsavj/vm3j.09b', 'vsavj/vm3j.10b'],
@@ -30,7 +33,7 @@ PROGRAM_CHIPS = {
                'vhuntj/vphj.07b', 'vhuntj/vphj.08b', 'vhuntj/vphj.09b', 'vhuntj/vphj.10b'],
 }
 # the zip each set is read from (clones live in their parent's zip)
-PARENT_ZIP = {'vsav2': 'vsav2', 'vsav2d': 'vsav2', 'vhunt2': 'vhunt2', 'vsav': 'vsav', 'vsavj': 'vsav',
+PARENT_ZIP = {'vsav2': 'vsav2', 'vsav2d': 'vsav2', 'vhunt2': 'vhunt2', 'vsav': 'vsav', 'vsavd': 'vsav', 'vsavj': 'vsav',
               'nwarr': 'nwarr', 'vhuntj': 'nwarr'}
 
 
