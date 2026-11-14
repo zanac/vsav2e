@@ -42,8 +42,8 @@ screen with all 18, laid out like the PlayStation game's (`docs/roster.md`).
 
 Names: the Western ones (Jon Talbain, Rikuo, Lord Raptor, B.B. Hood, Hsien-Ko, Huitzil).
 
-Versus: the challenger picks the stage on the VS screen (default random,
-`docs/versus.md`).
+Versus: after picking his character, the challenger picks the stage with the portraits
+(each character's stage; "?" random; `docs/versus.md`).
 
 ![](screenshots/versus_stage_select.png)
 
