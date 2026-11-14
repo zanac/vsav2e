@@ -14,6 +14,12 @@ This repository is private: it also holds material taken from the PlayStation ga
 | Path | What |
 |---|---|
 | `docs/analysis.md` | measurements of the two ROM sets: what differs, what each character weighs, what can be freed |
+| `make_vsav2e.py` | builds `vsav2e.zip` (program chips) from `vsav2.zip` and `vsav.zip` |
+| `tools/build/` | the build steps (region, language, win quotes) |
+| `tools/cps2/` | CPS2 program loader, quote text format |
+| `tools/dev/install_for_mame.py` | lays the build out as MAME's `vsav2d` for testing |
+| `docs/text.md` | where the texts are and how they are translated |
+| `tools/psx/`, `docs/psx.md` | tools and notes for the PlayStation Darkstalkers 3 |
 | `tools/trace/` | MAME Lua tile tracer and the scripts that drive the game (forced characters, auto-win to the endings) |
 | `tools/analysis/` | Python: loads and unshuffles the CPS2 graphics, renders tile sheets, attributes tiles to characters |
 
