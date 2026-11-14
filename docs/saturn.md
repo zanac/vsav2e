@@ -48,7 +48,14 @@ warning in Japanese and stops).
 Session: the START of the title at frame 3400 (the logo of Capcom and the opening come
 first), then the mode menu and the character select (arcade mode) around frame 4200.
 
-## RAM (work RAM offsets, low RAM first, so address - 0x200000 for the low RAM)
+## RAM
+
+The offsets below are indexes into the work RAM array that the core hands out (`satrun` writes
+there): 2 MB, low RAM first, then high RAM, and every 16-bit word stored the other way round
+(little-endian), so the Saturn address of a byte is `0x06000000 + (offset - 0x100000)` with
+bit 0 flipped. Example: `ENDING.PRG` sits at offset `0x174000`, that is `0x06074000`.
+The files other than `ENDING.PRG` are not in the work RAM: the game loads them into the 4 MB
+RAM cartridge, which the core does not hand out.
 
 | Offset | What |
 |---|---|
