@@ -7,6 +7,8 @@
    SYSTEM_DIR   directory the core may write to (default: the current one)
    OUT          prefix of the screenshots (default "shot_"): OUT<frame>.ppm
    SHOTS        frames to save, "950 1700 2400"
+   AUDIO        file the sound is saved to: 16-bit stereo, as the core gives it, with
+                no header (the sample rate is printed at the end)
    PRESS        "frame:button;frame:button": the button of player 1 is held 4 frames.
                 Buttons: coin start up down left right b1 b2 b3 b4 b5 b6; with "p2." in
                 front ("1100:p2.start") the button is player 2's
@@ -138,6 +140,10 @@ static bool environment(unsigned command, void *data)
             variable->value = "1.0";    /* without a value the core's palette loses its shades */
             return true;
         }
+        if (strstr(variable->key, "sample_rate")) {
+            variable->value = "48000";  /* without a value the core has no sound */
+            return true;
+        }
         variable->value = NULL;
         return false;
     }
@@ -189,8 +195,22 @@ static void video_refresh(const void *pixels, unsigned width, unsigned height, s
             save_screenshot(pixels, width, height, pitch);
 }
 
-static void audio_sample(int16_t left, int16_t right) { (void)left; (void)right; }
-static size_t audio_sample_batch(const int16_t *samples, size_t frames) { (void)samples; return frames; }
+static FILE *audio_file;
+
+static void audio_sample(int16_t left, int16_t right)
+{
+    if (audio_file) {
+        fwrite(&left, sizeof left, 1, audio_file);
+        fwrite(&right, sizeof right, 1, audio_file);
+    }
+}
+
+static size_t audio_sample_batch(const int16_t *samples, size_t frames)
+{
+    if (audio_file)
+        fwrite(samples, 2 * sizeof *samples, frames, audio_file);
+    return frames;
+}
 static void input_poll(void) {}
 
 static int16_t input_state(unsigned port, unsigned device, unsigned index, unsigned id)
@@ -352,7 +372,8 @@ int main(int argc, char **argv)
     unsigned (*read8)(unsigned);
     void (*run)(void);
     int frame_count;
-    char av_info[256];
+    /* struct retro_system_av_info: five geometry fields, then fps and sample rate */
+    struct { unsigned geometry[4]; float aspect; double fps; double sample_rate; } av_info;
 
     if (argc != 4) {
         fprintf(stderr, "usage: libretro_run CORE.so GAME.zip FRAMES (see the top of libretro_run.c)\n");
@@ -394,7 +415,14 @@ int main(int argc, char **argv)
         fprintf(stderr, "the core could not load %s\n", argv[2]);
         return 1;
     }
-    ((void (*)(void *))core_function(core, "retro_get_system_av_info"))(av_info);
+    ((void (*)(void *))core_function(core, "retro_get_system_av_info"))(&av_info);
+    if (getenv("AUDIO")) {
+        audio_file = fopen(getenv("AUDIO"), "wb");
+        if (!audio_file) {
+            perror(getenv("AUDIO"));
+            return 1;
+        }
+    }
 
     run = (void (*)(void))core_function(core, "retro_run");
     for (current_frame = 0; current_frame < frame_count; current_frame++) {
@@ -410,6 +438,10 @@ int main(int argc, char **argv)
                 dump_memory(read8, 0x90c000, 0x90c400, "palettes");
                 dump_memory(read8, 0xff8000, 0xffc000, "ram");
             }
+    }
+    if (audio_file) {
+        fclose(audio_file);
+        printf("audio: %.0f Hz\n", av_info.sample_rate);
     }
     return 0;
 }

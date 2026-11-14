@@ -69,7 +69,8 @@ already in mame2003-plus), and nothing else of it:
 
 - program ROM up to `0x5fffff`. The game never uses the object output at `0x400000`,
   only its mirror at `0xfffff0`;
-- 64 MB of sprite ROM, bit 12 of the sprite Y selecting the upper half.
+- 64 MB of sprite ROM, bit 12 of the sprite Y selecting the upper half;
+- 16 MB of QSound samples (the chip addresses 256 banks of 64 KB; CPS2 games use half).
 
 mame2003-plus: `MACHINE_DRIVER( vsav2e )` in `src/drivers/cps2.c` (branch `vsav2e` of the
 fork).
@@ -129,9 +130,24 @@ The three new cells come from the PlayStation screen (`assets/psx/select/*.png`,
 capture per character): the tombstone is the same drawing in other colours, 8 pixels to
 the left and 8 down in the captures.
 
+## Sound
+
+`tools/build/sound.py` explains the sound program (sequences, instruments, samples) and
+what is added. In short: the number the 68000 asks a sound with is the same in the two
+games, and Vampire Savior 2 simply has no sequence for the three characters' voices; 121
+sequences of Vampire Hunter 2 are copied (all the ones Vampire Savior 2 lacks but the
+music), with Vampire Hunter 2's instruments as eight more banks and its two sample ROMs
+as a second 8 MB of QSound samples (`vh2.11m`, `vh2.12m`, in `vsav2e.zip` as they are).
+
+Checked by recording the sound of the same match with the new and the old sound program
+(`AUDIO` of `tools/dev/libretro_run.c`; the runs are identical frame by frame): for the
+three characters the two recordings differ only where a voice is added, and the added
+sound of Jon Talbain's entrance is the one Vampire Hunter 2 plays at the same moment; for
+another character the recordings are the same to the sample.
+
 ## Not done yet
 
-- Sound: Vampire Savior 2's QSound ROMs lack the three characters' voices (2.8 MB of
-  Vampire Hunter 2's samples are not in them).
+- Vampire Hunter 2's music is not copied (the three characters fight on Vampire Savior
+  2's stages, with their music).
 - The names on screen are the Japanese ones (Gallon, Aulbath; also Zabel, Bulleta,
   Phobos...).

@@ -14,9 +14,9 @@ This repository is private: it also holds material taken from the PlayStation ga
 | Path | What |
 |---|---|
 | `docs/analysis.md` | measurements of the two ROM sets: what differs, what each character weighs, what can be freed |
-| `make_vsav2e.py` | builds `vsav2e.zip` (program, program extension, upper sprite bank) from `vsav2.zip`, `vsav.zip` and `vhunt2.zip` |
+| `make_vsav2e.py` | builds `vsav2e.zip` (program, program extension, upper sprite bank, sound program, second half of the samples) from `vsav2.zip`, `vsav.zip` and `vhunt2.zip` |
 | `docs/roster.md` | how Jon Talbain, Rikuo and Sasquatch are put back, the hardware it takes, how it is tested |
-| `tools/build/` | the build steps (region, language, win quotes, endings, roster, select screen) |
+| `tools/build/` | the build steps (region, language, win quotes, endings, roster, select screen, sound) |
 | `tools/cps2/sprite_rom.py` | reads and writes tiles in the sprite ROM chips |
 | `assets/psx/select/` | captures of the PlayStation select screen, one per character: the build takes the three new cells from them |
 | `tools/cps2/` | CPS2 program loader, quote text format |
@@ -30,8 +30,8 @@ This repository is private: it also holds material taken from the PlayStation ga
 ## State
 
 Done: English win quotes, endings and Jedah's speech; European region; Jon Talbain,
-Rikuo and Sasquatch playable and fought as opponents; the select screen with all 18,
-laid out like the PlayStation game's (`docs/roster.md`).
+Rikuo and Sasquatch playable and fought as opponents, with their voices; the select
+screen with all 18, laid out like the PlayStation game's (`docs/roster.md`).
 
 ![](screenshots/select_talbain.png)
 
@@ -39,7 +39,7 @@ laid out like the PlayStation game's (`docs/roster.md`).
 |---|---|---|
 | ![](screenshots/talbain.png) | ![](screenshots/rikuo.png) | ![](screenshots/sasquatch.png) |
 
-To do: the three characters' voices, the English names.
+To do: the English names.
 
 ## Running the tracer
 

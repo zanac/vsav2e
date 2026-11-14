@@ -4,7 +4,7 @@ import struct
 import zipfile
 
 from cps2 import program, sprite_rom
-from build import roster, select_screen, story_text, win_quotes
+from build import roster, select_screen, sound, story_text, win_quotes
 from build.extension import EXTENSION_START, Extension
 
 # The region is an immediate word in the boot code (`move.w #region, $90(a5)` at
@@ -49,7 +49,8 @@ HUNTER_SPRITE_ROMS = ('vh2.13m', 'vh2.15m', 'vh2.17m', 'vh2.19m')
 def build(rom_directory, captures_directory):
     """vsav2e as (the 4 MB of the CPS2 program space as the 68000 sees it, the program
     extension at 0x400000, the four chips of the upper sprite bank that are not Vampire
-    Savior 2's). captures_directory holds the PlayStation select screen captures."""
+    Savior 2's, the 256 KB sound program). captures_directory holds the PlayStation
+    select screen captures."""
     # the decrypted set is the base: its code can be patched, and the result needs no
     # encryption key (it runs as a "Phoenix" set)
     vsav2e = bytearray(program.load_program('vsav2d', rom_directory))
@@ -87,4 +88,10 @@ def build(rom_directory, captures_directory):
                                      roster_end, FREE_SPACE_END)
     print('select screen routines: 0x%x-0x%x' % (roster_end, select_end))
     print('program extension: 0x%x-0x%x' % (EXTENSION_START, extension.end()))
-    return bytes(vsav2e), bytes(extension.data), [bytes(chip) for chip in upper_bank.chips]
+
+    with zipfile.ZipFile(os.path.join(rom_directory, 'vsav2.zip')) as savior_archive:
+        savior_sound = savior_archive.read('vs2.01') + savior_archive.read('vs2.02')
+    with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:
+        hunter_sound = hunter_archive.read('vh2.01') + hunter_archive.read('vh2.02')
+    sound_program = sound.apply(savior_sound, hunter_sound)
+    return bytes(vsav2e), bytes(extension.data), [bytes(chip) for chip in upper_bank.chips], sound_program
