@@ -21,7 +21,7 @@ This repository is private: it also holds material taken from the PlayStation ga
 | `tools/dev/*.s` | GNU as sources of the routines the build writes as hex, to check them |
 | `tools/cps2/sprite_rom.py` | reads and writes tiles in the sprite ROM chips |
 | `assets/psx/select/` | captures of the PlayStation select screen, one per character: the build takes the three new cells from them |
-| `assets/psx/title/` | captures of the PlayStation title screen: the logo (`darkstalkers3.png`) and its 8 zoom pictures (`zoom1.png`-`zoom8.png`) |
+| `assets/vsav2e_title_assets.zip` | captures of the PlayStation title screen, at their paths `assets/psx/title/`: the logo (`darkstalkers3.png`) and its 8 zoom pictures (`zoom1.png`-`zoom8.png`); the build reads them from the zip, or from that folder if it is there |
 | `docs/title.md` | the Darkstalkers 3 title screen |
 | `tools/cps2/` | CPS2 program loader, quote text format |
 | `tools/dev/install_for_mame.py` | lays the build out as MAME's `vsav2d` for testing (without the three added characters) |

@@ -19,8 +19,9 @@ def paeth(left, up, up_left):
 
 
 def read(path):
-    """(width, height, rows): each row a list of (red, green, blue)"""
-    data = open(path, 'rb').read()
+    """(width, height, rows): each row a list of (red, green, blue). path: a file, or the
+    bytes of one"""
+    data = path if isinstance(path, bytes) else open(path, 'rb').read()
     if data[:8] != SIGNATURE:
         raise ValueError('%s is not a PNG file' % path)
     position = 8

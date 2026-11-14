@@ -7,7 +7,8 @@ PlayStation game shows it (measured frame by frame on the disc):
 
 - one black frame, then the logo grows from the middle of the screen to its full size
   in 8 frames (it is drawn smaller: these 8 pictures are captures of the PlayStation
-  screen, assets/psx/title/zoom1.png ... zoom8.png);
+  screen, assets/psx/title/zoom1.png ... zoom8.png, or the same paths in
+  assets/vsav2e_title_assets.zip);
 - from the last zoom picture, for 16 frames, the whole screen goes white step by step
   (16 of 255 more to each component on each frame, up to 248), then comes back at once;
 - then the logo stands still on black (assets/psx/title/darkstalkers3.png).
@@ -38,12 +39,17 @@ colours each, one per tile), and 16 versions of them, from normal to the whitest
 """
 import os
 import struct
+import zipfile
 
 from build import png
 
 # --- the captures --------------------------------------------------------------------
 
 LOGO_FILE = 'darkstalkers3.png'
+# The captures are read from the title folder, or else from the archive they were
+# uploaded in (in the assets folder, with their paths from the repository's root).
+CAPTURES_ARCHIVE = 'vsav2e_title_assets.zip'
+ARCHIVE_FOLDER = 'assets/psx/title/'
 ZOOM_FILES = ['zoom%d.png' % step for step in range(1, 9)]
 CAPTURE_LOGO_ROWS = 203                 # below: the copyright line of the PlayStation
 DARK = 8                                # a pixel no brighter than this is the black
@@ -138,10 +144,10 @@ def whiter(value, level):
     return (flashed * 15 + 127) // 255
 
 
-def read_picture(path, flash=0):
+def read_picture(data, flash=0):
     """the logo of a capture, on the screen: {(x, y): colour}, the black left out. flash:
     what the PlayStation's flash had added to each component in the capture"""
-    width, height, rows = png.read(path)
+    width, height, rows = png.read(data)
     picture = {}
     for y in range(min(height, CAPTURE_LOGO_ROWS)):
         for x, pixel in enumerate(rows[y]):
@@ -257,11 +263,29 @@ class TileAllocator:
         raise SystemExit('title screen: no empty tiles left')
 
 
+def read_captures(title_directory):
+    """{name: the bytes of the PNG} of the captures: from the title folder (assets/psx/
+    title), or else from CAPTURES_ARCHIVE in the assets folder"""
+    names = ZOOM_FILES + [LOGO_FILE]
+    if all(os.path.exists(os.path.join(title_directory, name)) for name in names):
+        return {name: open(os.path.join(title_directory, name), 'rb').read() for name in names}
+    archive_path = os.path.join(os.path.dirname(os.path.dirname(title_directory)), CAPTURES_ARCHIVE)
+    if not os.path.exists(archive_path):
+        raise SystemExit('title screen: the PlayStation captures are neither in %s nor in %s'
+                         % (title_directory, archive_path))
+    with zipfile.ZipFile(archive_path) as archive:
+        missing = [name for name in names if ARCHIVE_FOLDER + name not in archive.namelist()]
+        if missing:
+            raise SystemExit('title screen: %s has no %s' % (archive_path, ', '.join(missing)))
+        return {name: archive.read(ARCHIVE_FOLDER + name) for name in names}
+
+
 def build_pictures(extension, sprite_roms, first_free_tile, title_directory):
     """writes the tiles, the frames and the palette table; returns (steps, palettes table,
     blend table) addresses in the extension and the count of tiles"""
+    captures = read_captures(title_directory)
     # the last zoom picture is captured with the first step of the flash
-    pictures = [read_picture(os.path.join(title_directory, name), FLASH_STEP if name == ZOOM_FILES[-1] else 0)
+    pictures = [read_picture(captures[name], FLASH_STEP if name == ZOOM_FILES[-1] else 0)
                 for name in ZOOM_FILES + [LOGO_FILE]]
     tiled = [picture_tiles(picture) for picture in pictures]
     keys, tile_counts = [], []

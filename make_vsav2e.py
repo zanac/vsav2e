@@ -13,7 +13,8 @@ the sound program and the two sample ROMs of Vampire Hunter 2, copied as they ar
 
 The select screen is laid out like the PlayStation Darkstalkers 3's and takes its three
 new cells from captures of it: assets/psx/select/*.png, next to this script. The title
-screen is the PlayStation one, from the captures in assets/psx/title/.
+screen is the PlayStation one, from the captures in assets/vsav2e_title_assets.zip (or
+in assets/psx/title/).
 """
 import os
 import sys
