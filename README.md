@@ -1,4 +1,4 @@
-# vsav2e: Vampire Savior 2 with the full roster, in English (work in progress)
+# vsav2e: Darkstalkers 3 — Vampire Savior 2 with the full roster, in English (work in progress)
 
 Private work repository for a CPS2 bootleg of *Vampire Savior 2: The Lord of Vampire*
 (MAME set `vsav2`) with the characters that only *Vampire Hunter 2* (`vhunt2`) has —
@@ -17,9 +17,12 @@ This repository is private: it also holds material taken from the PlayStation ga
 | `make_vsav2e.py` | builds `vsav2e.zip` (program, program extension, upper sprite bank, sound program, second half of the samples) from `vsav2.zip`, `vsav.zip` and `vhunt2.zip` |
 | `docs/versus.md` | the stage choice of a versus match |
 | `docs/roster.md` | how Jon Talbain, Rikuo and Sasquatch are put back, the hardware it takes, how it is tested |
-| `tools/build/` | the build steps (region, language, win quotes, endings, roster, select screen, sound, names, versus stage) |
+| `tools/build/` | the build steps (region, language, win quotes, endings, roster, select screen, title screen, sound, names, versus stage) |
+| `tools/dev/*.s` | GNU as sources of the routines the build writes as hex, to check them |
 | `tools/cps2/sprite_rom.py` | reads and writes tiles in the sprite ROM chips |
 | `assets/psx/select/` | captures of the PlayStation select screen, one per character: the build takes the three new cells from them |
+| `assets/psx/title/` | captures of the PlayStation title screen: the logo (`darkstalkers3.png`) and its 8 zoom pictures (`zoom1.png`-`zoom8.png`) |
+| `docs/title.md` | the Darkstalkers 3 title screen |
 | `tools/cps2/` | CPS2 program loader, quote text format |
 | `tools/dev/install_for_mame.py` | lays the build out as MAME's `vsav2d` for testing (without the three added characters) |
 | `tools/dev/libretro_run.c` | runs the set in the mame2003-plus core with scripted inputs, screenshots and memory writes |
@@ -32,7 +35,10 @@ This repository is private: it also holds material taken from the PlayStation ga
 
 Done: English win quotes, endings and Jedah's speech; European region; Jon Talbain,
 Rikuo and Sasquatch playable and fought as opponents, with their voices; the select
-screen with all 18, laid out like the PlayStation game's (`docs/roster.md`).
+screen with all 18, laid out like the PlayStation game's (`docs/roster.md`); the
+PlayStation Darkstalkers 3 title screen, with its zoom and flash (`docs/title.md`).
+
+![](screenshots/title.png)
 
 ![](screenshots/select_talbain.png)
 

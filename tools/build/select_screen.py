@@ -434,11 +434,11 @@ def extend_random_choice(vsav2e, free_space_start, free_space_end):
 def apply(vsav2e, hunter, extension, sprite_roms, captures_directory, free_space_start, free_space_end):
     """Changes the select screen in the vsav2e program (a bytearray); the new frame goes
     to the program extension and the new tiles to sprite_roms, the upper sprite bank.
-    Returns the first free address of the program."""
+    Returns the first free address of the program and the first tile after the new ones."""
     screen = PlayStationScreen(captures_directory)
     sprites, tiles_end, cells_palette = build_icon_frame(vsav2e, hunter, extension, sprite_roms, screen)
     print('select screen: %d sprites, new tiles 0x%x-0x%x' % (sprites, NEW_TILES_START, tiles_end))
     move_cursors(vsav2e)
     write_navigation(vsav2e)
     free_space = extend_random_choice(vsav2e, free_space_start, free_space_end)
-    return load_new_cells_palette(vsav2e, cells_palette, free_space, free_space_end)
+    return load_new_cells_palette(vsav2e, cells_palette, free_space, free_space_end), tiles_end

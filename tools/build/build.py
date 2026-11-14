@@ -4,7 +4,7 @@ import struct
 import zipfile
 
 from cps2 import program, sprite_rom
-from build import names, roster, select_screen, sound, story_text, versus_stage, win_quotes
+from build import names, roster, select_screen, sound, story_text, title_screen, versus_stage, win_quotes
 from build.extension import EXTENSION_START, Extension
 
 # The region is an immediate word in the boot code (`move.w #region, $90(a5)` at
@@ -54,11 +54,11 @@ FREE_SPACE_END = 0xff000
 HUNTER_SPRITE_ROMS = ('vh2.13m', 'vh2.15m', 'vh2.17m', 'vh2.19m')
 
 
-def build(rom_directory, captures_directory):
+def build(rom_directory, psx_directory):
     """vsav2e as (the 4 MB of the CPS2 program space as the 68000 sees it, the program
     extension at 0x400000, the four chips of the upper sprite bank that are not Vampire
-    Savior 2's, the 256 KB sound program). captures_directory holds the PlayStation
-    select screen captures."""
+    Savior 2's, the 256 KB sound program). psx_directory holds the PlayStation captures:
+    select/ (the select screen) and title/ (the title screen)."""
     # the decrypted set is the base: its code can be patched, and the result needs no
     # encryption key (it runs as a "Phoenix" set)
     vsav2e = bytearray(program.load_program('vsav2d', rom_directory))
@@ -95,11 +95,14 @@ def build(rom_directory, captures_directory):
 
     with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:
         upper_bank = sprite_rom.SpriteRoms([hunter_archive.read(name) for name in HUNTER_SPRITE_ROMS])
-    select_end = select_screen.apply(vsav2e, hunter, extension, upper_bank, captures_directory,
-                                     roster_end, FREE_SPACE_END)
+    select_end, select_tiles_end = select_screen.apply(vsav2e, hunter, extension, upper_bank,
+                                                       os.path.join(psx_directory, 'select'),
+                                                       roster_end, FREE_SPACE_END)
     print('select screen routines: 0x%x-0x%x' % (roster_end, select_end))
-    versus_end = versus_stage.apply(vsav2e, extension, select_end, FREE_SPACE_END)
-    print('versus stage choice: 0x%x-0x%x' % (select_end, versus_end))
+    title_end, logo_work = title_screen.apply(vsav2e, extension, upper_bank, select_tiles_end,
+                                              os.path.join(psx_directory, 'title'), select_end, FREE_SPACE_END)
+    versus_end = versus_stage.apply(vsav2e, extension, title_end, FREE_SPACE_END, logo_work)
+    print('versus stage choice: 0x%x-0x%x' % (title_end, versus_end))
     print('program extension: 0x%x-0x%x' % (EXTENSION_START, extension.end()))
 
     with zipfile.ZipFile(os.path.join(rom_directory, 'vsav2.zip')) as savior_archive:

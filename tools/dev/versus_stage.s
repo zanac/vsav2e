@@ -3,7 +3,7 @@
 | them with GNU as (same bytes, given the same addresses):
 |   m68k-linux-gnu-as -m68000 --defsym STEPS=<steps> --defsym STAGE_OF_CELL=<stages> \
 |       --defsym STAGE_SECONDS=10 --defsym BUTTON_WAIT=16 --defsym NAME_X=0xc0 \
-|       --defsym NAME_Y=0x18 -o stage.o versus_stage.s
+|       --defsym NAME_Y=0x18 --defsym NAME_OTHER=<title_frame> -o stage.o versus_stage.s
 |   m68k-linux-gnu-objcopy -O binary stage.o stage.bin
 | Order: cursor_hook (jumped to from 0x1f5e6), confirm_hook (from 0x1f65e), name_frame
 | (from 0x6c67e), stage_apply (from 0x970a).
@@ -159,10 +159,7 @@ name_frame:
 9:      clr.w   MARK_FIELD(%a6)
         move.b  #4, 4(%a6)
         rts
-10:     move.b  5(%a6), %d0
-        lea     0x6c68a, %a1
-        move.w  0(%a1,%d0.w), %d1
-        jmp     0(%a1,%d1.w)
+10:     jmp     NAME_OTHER
 
 stage_apply:
         cmpi.b  #2, STATE(%a5)

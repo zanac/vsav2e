@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """make_vsav2e.py ROM_DIRECTORY [OUTPUT_DIRECTORY]
 
-Builds vsav2e.zip, the English full-roster Vampire Savior 2, from the MAME sets in
+Builds vsav2e.zip, Darkstalkers 3: the English full-roster Vampire Savior 2, from the MAME sets in
 ROM_DIRECTORY: vsav2.zip (with its decrypted clone vsav2d inside), vsav.zip (Vampire
 Savior, Europe: the English texts) and vhunt2.zip (Vampire Hunter 2: Jon Talbain, Rikuo
 and Sasquatch).
@@ -12,7 +12,8 @@ from Vampire Savior 2's, with the new tiles of the select screen in their empty 
 the sound program and the two sample ROMs of Vampire Hunter 2, copied as they are.
 
 The select screen is laid out like the PlayStation Darkstalkers 3's and takes its three
-new cells from captures of it: assets/psx/select/*.png, next to this script.
+new cells from captures of it: assets/psx/select/*.png, next to this script. The title
+screen is the PlayStation one, from the captures in assets/psx/title/.
 """
 import os
 import sys
@@ -33,7 +34,7 @@ UPPER_SPRITE_BANK_NAMES = ['vs2e.21m', 'vs2e.23m', 'vs2e.25m', 'vs2e.27m']
 SOUND_PROGRAM_NAMES = ['vs2e.01', 'vs2e.02']
 # the second 8 MB of QSound samples: Vampire Hunter 2's
 HUNTER_SAMPLE_ROMS = ['vh2.11m', 'vh2.12m']
-CAPTURES_DIRECTORY = os.path.join(HERE, 'assets', 'psx', 'select')
+PSX_DIRECTORY = os.path.join(HERE, 'assets', 'psx')
 
 
 def main():
@@ -41,7 +42,7 @@ def main():
         sys.exit(__doc__)
     rom_directory = sys.argv[1]
     output_directory = sys.argv[2] if len(sys.argv) > 2 else '.'
-    main_program, extension, upper_sprite_bank, sound_program = build.build(rom_directory, CAPTURES_DIRECTORY)
+    main_program, extension, upper_sprite_bank, sound_program = build.build(rom_directory, PSX_DIRECTORY)
     files = list(zip(PROGRAM_CHIP_NAMES, program.split_program(main_program)))
     files.append((PROGRAM_EXTENSION_NAME, program.swap_byte_pairs(extension)))
     files.extend(zip(UPPER_SPRITE_BANK_NAMES, upper_sprite_bank))

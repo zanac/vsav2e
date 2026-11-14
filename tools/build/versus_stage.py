@@ -336,8 +336,9 @@ def select_routines(stage_of_cell):
     return cursor_hook + confirm_hook, len(cursor_hook)
 
 
-def name_frame_routine(steps):
-    """The stage name object's work on each frame."""
+def name_frame_routine(steps, other_work):
+    """The stage name object's work on each frame; when the object is not the stage
+    choice's, other_work."""
     return bytes.fromhex(
         '0c6e%04x%04x' % (MARK, MARK_FIELD) +           # cmpi.w  #MARK, MARK(a6)
         '6662'                                          # bne.s   game
@@ -372,11 +373,8 @@ def name_frame_routine(steps):
         '426e%04x' % MARK_FIELD +                       # clr.w   MARK(a6)
         '1d7c00040004'                                  # move.b  #4, $4(a6)       destroy
         '4e75'                                          # rts
-        # game: the instructions the jump replaced
-        '102e0005'                                      # move.b  $5(a6), d0
-        '43f9%08x' % NAME_OBJECT_STATE_TABLE +          # lea     table, a1
-        '32310000'                                      # move.w  0(a1, d0.w), d1
-        '4ef11000')                                     # jmp     0(a1, d1.w)
+        # game: the object's other work (the title logo's, which ends with the game's)
+        '4ef9%08x' % other_work)                        # jmp     other work
 
 
 STAGE_APPLY_ROUTINE = bytes.fromhex(
@@ -407,9 +405,10 @@ def jump(target):
     return b'\x4e\xf9' + struct.pack('>I', target)
 
 
-def apply(vsav2e, extension, free_space_start, free_space_end):
+def apply(vsav2e, extension, free_space_start, free_space_end, name_object_other_work):
     """Adds the stage choice to the vsav2e program (a bytearray); the frames go to the
-    program extension. Returns the first free address of the program."""
+    program extension. The stage name object, when it is not the stage choice's, goes
+    to name_object_other_work. Returns the first free address of the program."""
     header = encode_line('SELECT STAGE')
     name_lines = {RANDOM: [encode_line('RANDOM')]}
     for stage in sorted(set(STAGE_OF_CHARACTER.values())):
@@ -427,7 +426,7 @@ def apply(vsav2e, extension, free_space_start, free_space_end):
     stages = extension.add(bytes(stage & 0xff for stage in stage_of_cell))
 
     select, confirm_offset = select_routines(stages)
-    routines = [select, name_frame_routine(steps), STAGE_APPLY_ROUTINE]
+    routines = [select, name_frame_routine(steps, name_object_other_work), STAGE_APPLY_ROUTINE]
     addresses = []
     address = free_space_start + (free_space_start & 1)
     for routine in routines:

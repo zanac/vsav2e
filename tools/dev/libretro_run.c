@@ -18,7 +18,8 @@
                 is written to the 68000 memory on every frame from first to last
    DUMPS        frames at which memory is saved: OUT<frame>_sprites.bin (the sprite list,
                 0x708000-0x709fff), OUT<frame>_palettes.bin (0x90c000-0x90c3ff) and
-                OUT<frame>_ram.bin (0xff8000-0xffbfff)
+                OUT<frame>_ram.bin (0xff8000-0xffbfff), OUT<frame>_wram.bin (all the
+                work RAM, 0xff0000-0xffffff)
    AUTOWIN      from this frame on, player 1 keeps full vitality and player 2 has none
                 (Vampire Savior 2 RAM)
 
@@ -437,6 +438,7 @@ int main(int argc, char **argv)
                 dump_memory(read8, 0x708000, 0x70a000, "sprites");
                 dump_memory(read8, 0x90c000, 0x90c400, "palettes");
                 dump_memory(read8, 0xff8000, 0xffc000, "ram");
+                dump_memory(read8, 0xff0000, 0x1000000, "wram");
             }
     }
     if (audio_file) {
