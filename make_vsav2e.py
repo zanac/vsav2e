@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """make_vsav2e.py ROM_DIRECTORY [OUTPUT_DIRECTORY]
 
-Builds vsav2e.zip, the program of the English full-roster Vampire Savior 2, from the
-MAME sets in ROM_DIRECTORY: vsav2.zip (with its decrypted clone vsav2d inside), vsav.zip
-(Vampire Savior, Europe: the English texts) and, later, vhunt2.zip.
+Builds vsav2e.zip, the English full-roster Vampire Savior 2, from the MAME sets in
+ROM_DIRECTORY: vsav2.zip (with its decrypted clone vsav2d inside), vsav.zip (Vampire
+Savior, Europe: the English texts) and vhunt2.zip (Vampire Hunter 2: Jon Talbain, Rikuo
+and Sasquatch).
 
-Work in progress: for now the zip holds the eight program chips only.
+The zip holds what vsav2e has more than its parent vsav2: the program (eight chips and
+the extension at 0x400000) and the four sprite ROMs of Vampire Hunter 2 that differ from
+Vampire Savior 2's, copied as they are.
 """
 import os
 import sys
@@ -20,6 +23,9 @@ from cps2 import program
 
 PROGRAM_CHIP_NAMES = ['vs2e.03', 'vs2e.04', 'vs2e.05', 'vs2e.06', 'vs2e.07', 'vs2e.08',
                       'vs2e.09', 'vs2e.10']
+PROGRAM_EXTENSION_NAME = 'vs2e.10x'
+# the sprite ROMs of Vampire Hunter 2 that are not also in Vampire Savior 2
+HUNTER_SPRITE_ROMS = ['vh2.13m', 'vh2.15m', 'vh2.17m', 'vh2.19m']
 
 
 def main():
@@ -27,14 +33,20 @@ def main():
         sys.exit(__doc__)
     rom_directory = sys.argv[1]
     output_directory = sys.argv[2] if len(sys.argv) > 2 else '.'
-    chips = program.split_program(build.build(rom_directory))
+    main_program, extension = build.build(rom_directory)
+    files = list(zip(PROGRAM_CHIP_NAMES, program.split_program(main_program)))
+    files.append((PROGRAM_EXTENSION_NAME, program.swap_byte_pairs(extension)))
+    with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:
+        for name in HUNTER_SPRITE_ROMS:
+            files.append((name, hunter_archive.read(name)))
+
     output_path = os.path.join(output_directory, 'vsav2e.zip')
     # the zip is written in full before anything is printed, so that a closed output
     # pipe (`... | head`) cannot leave it half written
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as archive:
-        for name, data in zip(PROGRAM_CHIP_NAMES, chips):
+        for name, data in files:
             archive.writestr(name, data)
-    for name, data in zip(PROGRAM_CHIP_NAMES, chips):
+    for name, data in files:
         print('  %-8s %7d  %08x' % (name, len(data), zlib.crc32(data) & 0xffffffff))
     print('written', output_path)
 

@@ -2,7 +2,7 @@
 import struct
 
 from cps2 import program
-from build import story_text, win_quotes
+from build import roster, story_text, win_quotes
 
 # The region is an immediate word in the boot code (`move.w #region, $90(a5)` at
 # 0x10cc): 0 Japan, 2 USA, 4 Hispanic, 6 Oceania, 8 Asia, 0xa Europe, 0xc Brazil.
@@ -39,11 +39,13 @@ FREE_SPACE_END = 0xff000
 
 
 def build(rom_directory):
-    """the vsav2e program (4 MB, as the 68000 sees it)"""
+    """The vsav2e program as the 68000 sees it: (the 4 MB of the CPS2 program space,
+    the extension at 0x400000)."""
     # the decrypted set is the base: its code can be patched, and the result needs no
     # encryption key (it runs as a "Phoenix" set)
     vsav2e = bytearray(program.load_program('vsav2d', rom_directory))
     savior = program.load_program('vsav', rom_directory)
+    hunter = program.load_program('vhunt2', rom_directory)
 
     struct.pack_into('>H', vsav2e, REGION_WORD_ADDRESS, REGION_EUROPE)
 
@@ -66,4 +68,6 @@ def build(rom_directory):
           % (FREE_SPACE_START, free_space, ', '.join('%02x' % i for i in untranslated)))
     story_end = story_text.apply(vsav2e, savior, free_space, FREE_SPACE_END)
     print('endings and Jedah: 0x%x-0x%x' % (free_space, story_end))
-    return bytes(vsav2e)
+    roster_end, extension = roster.apply(vsav2e, hunter, story_end, FREE_SPACE_END)
+    print('frame hook: 0x%x-0x%x' % (story_end, roster_end))
+    return bytes(vsav2e), extension

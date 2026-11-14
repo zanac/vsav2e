@@ -1,0 +1,20 @@
+Development only, never to be committed to mame2003-plus: lets the test runner
+(tools/dev/libretro_run.c) write the 68000 memory, to pick a character or end a match.
+
+diff --git a/src/mame2003/mame2003.c b/src/mame2003/mame2003.c
+index 4c07a1a..78cc9cd 100644
+--- a/src/mame2003/mame2003.c
++++ b/src/mame2003/mame2003.c
+@@ -695,6 +695,12 @@ void *retro_get_memory_data(unsigned type) {return 0;}
+ size_t retro_get_memory_size(unsigned type) {return 0;}
+ bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info){return false;}
+ void retro_cheat_reset(void){}
++__attribute__((visibility("default"))) void retro_dev_write8(unsigned address, unsigned value)
++{
++  cpuintrf_push_context(0);
++  cpu_writemem24bew(address, value);
++  cpuintrf_pop_context();
++}
+ void retro_cheat_set(unsigned unused, bool unused1, const char* unused2){}
+ void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }
+ void retro_set_audio_sample(retro_audio_sample_t cb) { }

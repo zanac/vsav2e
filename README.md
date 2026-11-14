@@ -14,14 +14,27 @@ This repository is private: it also holds material taken from the PlayStation ga
 | Path | What |
 |---|---|
 | `docs/analysis.md` | measurements of the two ROM sets: what differs, what each character weighs, what can be freed |
-| `make_vsav2e.py` | builds `vsav2e.zip` (program chips) from `vsav2.zip` and `vsav.zip` |
-| `tools/build/` | the build steps (region, language, win quotes) |
+| `make_vsav2e.py` | builds `vsav2e.zip` (program, program extension, Vampire Hunter 2's sprite ROMs) from `vsav2.zip`, `vsav.zip` and `vhunt2.zip` |
+| `docs/roster.md` | how Jon Talbain, Rikuo and Sasquatch are put back, the hardware it takes, how it is tested |
+| `tools/build/` | the build steps (region, language, win quotes, endings, roster) |
 | `tools/cps2/` | CPS2 program loader, quote text format |
-| `tools/dev/install_for_mame.py` | lays the build out as MAME's `vsav2d` for testing |
+| `tools/dev/install_for_mame.py` | lays the build out as MAME's `vsav2d` for testing (without the three added characters) |
+| `tools/dev/libretro_run.c` | runs the set in the mame2003-plus core with scripted inputs, screenshots and memory writes |
 | `docs/text.md` | where the texts are and how they are translated |
 | `tools/psx/`, `docs/psx.md` | tools and notes for the PlayStation Darkstalkers 3 |
 | `tools/trace/` | MAME Lua tile tracer and the scripts that drive the game (forced characters, auto-win to the endings) |
 | `tools/analysis/` | Python: loads and unshuffles the CPS2 graphics, renders tile sheets, attributes tiles to characters |
+
+## State
+
+Done: English win quotes, endings and Jedah's speech; European region; Jon Talbain,
+Rikuo and Sasquatch playable and fought as opponents (`docs/roster.md`).
+
+| | | |
+|---|---|---|
+| ![](screenshots/talbain.png) | ![](screenshots/rikuo.png) | ![](screenshots/sasquatch.png) |
+
+To do: the select screen with all 18, the three characters' voices, the English names.
 
 ## Running the tracer
 

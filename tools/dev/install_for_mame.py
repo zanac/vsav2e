@@ -20,7 +20,9 @@ def main():
     built_zip, rom_directory, test_directory = sys.argv[1:4]
     os.makedirs(test_directory, exist_ok=True)
     built = zipfile.ZipFile(built_zip)
-    replaced = {MAME_NAME[name]: built.read(name) for name in built.namelist()}
+    # what a stock CPS2 cannot load (the program extension, the second sprite bank) is
+    # left out: everything but the three added characters works without it
+    replaced = {MAME_NAME[name]: built.read(name) for name in built.namelist() if name in MAME_NAME}
     original = zipfile.ZipFile(os.path.join(rom_directory, 'vsav2.zip'))
     with zipfile.ZipFile(os.path.join(test_directory, 'vsav2.zip'), 'w', zipfile.ZIP_DEFLATED) as out:
         for name in original.namelist():
