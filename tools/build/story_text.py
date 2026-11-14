@@ -30,6 +30,14 @@ ENDING_LINE_LENGTH = 24
 DIALOGUE_LINE_LENGTH = 30
 
 
+# The ending centres each line by moving its start left by (letters - 1) * 8 pixels
+# (`asl.w #3, d0` at 0x8b246), right for the 16-pixel kanji but twice too much for the
+# Western letters, which advance 8 pixels: the shift becomes `asl.w #2, d0`.
+ENDING_CENTRING_SHIFT_ADDRESS = 0x8b246
+ENDING_CENTRING_SHIFT_ORIGINAL = bytes.fromhex('e740')     # asl.w #3, d0
+ENDING_CENTRING_SHIFT_WESTERN = bytes.fromhex('e540')      # asl.w #2, d0
+
+
 def latin_codes(vsav_program):
     """ASCII character -> its 16-bit code (tile and spacing), learnt from all the
     English texts of Vampire Savior (win quotes, endings and the other two tables)"""
@@ -79,6 +87,10 @@ def check_same_shape(vsav2_program, table_address, blocks, name):
 def apply(vsav2_program, vsav_program, free_space_address, free_space_end):
     """writes the English tables at free_space_address; returns the address after them"""
     code_of = latin_codes(vsav_program)
+    end = ENDING_CENTRING_SHIFT_ADDRESS + len(ENDING_CENTRING_SHIFT_ORIGINAL)
+    if vsav2_program[ENDING_CENTRING_SHIFT_ADDRESS:end] != ENDING_CENTRING_SHIFT_ORIGINAL:
+        raise SystemExit('story text: unexpected code at the ending centring')
+    vsav2_program[ENDING_CENTRING_SHIFT_ADDRESS:end] = ENDING_CENTRING_SHIFT_WESTERN
     for language_table, name, maximum_line_length, blocks in (
             (ENDINGS_LANGUAGE_TABLE, 'endings', ENDING_LINE_LENGTH,
              [vsav2_story_en.ENDING, vsav2_story_en.ENDING_JEDAH]),

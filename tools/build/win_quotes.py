@@ -12,11 +12,13 @@ quotes of Vampire Savior, so their English quotes are taken as they are. The ste
   4. writes the new master table in free ROM space and points the English, Spanish and
      Portuguese entries of the language table at it.
 
-Characters with quotes written for Vampire Savior 2 (Donovan, Huitzil, Pyron and the
-boss) have no English in `vsav`: they keep the Japanese block until they are translated.
+Characters with quotes written for Vampire Savior 2 (Huitzil, Pyron, Donovan) have no
+English in `vsav`: theirs is our translation, text/vsav2_win_quotes_en.py.
 """
 import struct
 
+import vsav2_win_quotes_en
+from build import story_text
 from cps2 import quotes
 
 # vsav2: the language table (4 long pointers) and its only, Japanese, master table
@@ -43,6 +45,7 @@ def apply(vsav2_program, vsav_program, free_space_address, free_space_end):
     savior_english = [quotes.read_block(vsav_program, address) for address in
                       quotes.read_master_table(vsav_program, VSAV_ENGLISH_MASTER_TABLE)]
 
+    code_of = story_text.latin_codes(vsav_program)
     english_blocks, untranslated_ids = [], []
     block_cache = {}        # block address in vsav2 -> the quotes chosen for it
     for character_id, block_address in enumerate(
@@ -55,6 +58,13 @@ def apply(vsav2_program, vsav_program, free_space_address, free_space_end):
             matches = [index for index, block in enumerate(savior_japanese) if block == japanese]
             if matches:
                 block_cache[block_address] = savior_english[matches[0]]
+            elif character_id in vsav2_win_quotes_en.QUOTES:
+                ours = vsav2_win_quotes_en.QUOTES[character_id]
+                if [len(quote) for quote in ours] != [len(quote) for quote in japanese]:
+                    raise SystemExit('win quotes: character %02x does not have the original lines'
+                                     % character_id)
+                block_cache[block_address] = story_text.encode_text(
+                    [ours], code_of, story_text.DIALOGUE_LINE_LENGTH)[0]
             else:
                 block_cache[block_address] = japanese
                 untranslated_ids.append(character_id)

@@ -29,10 +29,13 @@ def main():
     output_directory = sys.argv[2] if len(sys.argv) > 2 else '.'
     chips = program.split_program(build.build(rom_directory))
     output_path = os.path.join(output_directory, 'vsav2e.zip')
+    # the zip is written in full before anything is printed, so that a closed output
+    # pipe (`... | head`) cannot leave it half written
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as archive:
         for name, data in zip(PROGRAM_CHIP_NAMES, chips):
             archive.writestr(name, data)
-            print('  %-8s %7d  %08x' % (name, len(data), zlib.crc32(data) & 0xffffffff))
+    for name, data in zip(PROGRAM_CHIP_NAMES, chips):
+        print('  %-8s %7d  %08x' % (name, len(data), zlib.crc32(data) & 0xffffffff))
     print('written', output_path)
 
 

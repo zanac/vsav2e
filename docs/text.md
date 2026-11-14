@@ -20,8 +20,10 @@ Portuguese follow the same layout further on). 33 character ids, 16 quotes each.
 Twelve characters of vsav2 have exactly Vampire Savior's Japanese quotes, so the English
 ones are copied as they are (`tools/build/win_quotes.py`); ids `02`, `09`, `0a` (Jon
 Talbain, Rikuo, Sasquatch) get their Vampire Savior quotes too, ready for the full
-roster. Ids `10`, `11`, `13` have quotes written for Vampire Savior 2 and are still
-Japanese: to translate (the PlayStation game shows them in English).
+roster. Ids `10`, `11`, `13` (Huitzil, Pyron, Donovan) have quotes written for Vampire
+Savior 2, never translated by Capcom for the arcade: the English is ours, in
+`text/vsav2_win_quotes_en.py` (same number of lines as each Japanese quote; the font has
+no digits, no `:` and no Q, X, Z).
 
 The proportional Latin font of the quotes is still in vsav2's graphics: the English
 quotes display correctly with no graphics change.
@@ -42,10 +44,11 @@ the English is ours, in `text/vsav2_story_en.py`, written by `tools/build/story_
   (proportional spacing, light blue).
 - Ending lines hold at most 24 letters: with 29 the game crashes (several lines are on
   screen at once; the limit is somewhere in between). Other lines at most 30.
-- Known cosmetic point: the ending lines are centred as if every letter were 8 pixels
-  wide, so they sit a little off centre.
+- The ending renderer (object code at `0x8b1fc`) starts each line (letters - 1) * 8
+  pixels left of the centre (`asl.w #3, d0` at `0x8b246`): right for the 16-pixel kanji,
+  twice too much for the Western letters, which advance 8 pixels. vsav2e makes it
+  `asl.w #2, d0`, so the lines are centred.
 
 ## Not done yet
 
-The three untranslated characters (ids 10, 11, 13), the Japanese in graphics (if any),
-the remaining system text.
+The Japanese in graphics (if any), the remaining system text.
