@@ -151,6 +151,7 @@ games, and Vampire Savior 2 simply has no sequence for the three characters' voi
 sequences of Vampire Hunter 2 are copied (all the ones Vampire Savior 2 lacks but the
 music), with Vampire Hunter 2's instruments as eight more banks and its two sample ROMs
 as a second 8 MB of QSound samples (`vh2.11m`, `vh2.12m`, in `vsav2e.zip` as they are).
+The music of Vampire Savior's endings is copied too, after them (`docs/endings.md`).
 
 Checked by recording the sound of the same match with the new and the old sound program
 (`AUDIO` of `tools/dev/libretro_run.c`; the runs are identical frame by frame): for the

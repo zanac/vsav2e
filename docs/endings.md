@@ -71,17 +71,51 @@ addresses and numbers (no data of the games). The recipe is made once by
   step 4 (Vampire Savior's credits) the dispatcher clears the bank and continues at step
   `0x12` of Vampire Savior 2's ending, its staff credits.
 
+## Music
+
+The scripts ask for the music of the endings with `moveq #n, d0` / `jsr $21d66`, two
+pieces by character (`0x25`-`0x2f`, `0x31`-`0x33`, `0x35`-`0x3f`, `0x42`-`0x44`).
+Vampire Savior 2's sound program has other music under those numbers, or none, so:
+
+- **The sequences are copied** from Vampire Savior's sound program (`vm3.01`, `vm3.02`)
+  into vsav2e's, under new numbers (`0x50`-`0x6b`, free in Vampire Savior 2), and the
+  `moveq` of the moved scripts get the new numbers (`tools/build/sound.py`,
+  `tools/build/endings.py`). The sound program grows to 288 KB: the copies are in Z80
+  banks 13-15 (`vs2e.02` is 160 KB).
+- **The sender.** `0x21d66` keeps the number in `$c(a5)` and starts a delayed sender
+  (`0x4d60`, case 2) that sends it. Vampire Savior 2's sender (`0x51a0`) sends its own
+  ending music (`0x38`) in that case, so the moved routine jumps to a small sender of its
+  own (the same code as Vampire Savior's case 2).
+- **Instruments.** The two drivers are the same code. The instruments the endings use
+  (logged from the Z80's reads in MAME, `tools/dev/endings/ztap.lua`: banks 0, 1, 5 and
+  6) are Vampire Savior 2's but for three, so banks 1, 5 and 6 get copies (banks 16-18)
+  with Vampire Savior's instruments; in a sequence of bank 13 or more `1f nn` picks bank
+  nn through a small table. Their samples are all somewhere in vsav2e's 16 MB.
+- **Sound effects.** The few the endings ask for (`0xe4`-`0xe8`, Zabel's and Sasquatch's)
+  are the same sequences in Vampire Hunter 2, already copied for the three characters.
+
+Things learnt:
+- Sound number n plays the sequence of entry n + 1 of the table at `0x9001` (the driver
+  reads `0x9006 + 4n`, after taking n modulo the word at `0x9000`): the MAME log of the
+  Z80's reads through its bank window (`tools/dev/endings/btap.lua`) shows Demitri's
+  ending, which asks for `0x26`, reading the sequence of entry `0x27`.
+- Some entries point into the middle of other sequences: a sequence runs to the next
+  one that starts after its last track, not to the next entry.
+- A sequence that runs over the end of a 16 KB bank keeps its place in the window
+  (the driver goes on in the next bank); two do.
+
+Checked by recording each ending in both games with `tools/dev/libretro_run.c` (`AUDIO`
+and `WATCH=618001,618003`, the number the 68000 writes to the QSound shared RAM) and
+comparing the spectra of the two recordings from the request of each piece
+(`tools/dev/endings/music_compare.py`): the same music, 0.8 to 1.0 of correlation over
+3-second windows, against 0.5 or less between two different pieces.
+
 ## Program extension
 
 The endings take 490 KB of the extension, which is 2 MB (`0x400000`-`0x5fffff`).
 
 ## Not done yet
 
-- **Music.** The scripts ask for the music of Vampire Savior's endings (sequences
-  `0x25`-`0x3f` and `0x42`-`0x45`, two by character); Vampire Savior 2's sound program
-  has other music under those numbers, or none. 594 of Vampire Savior's 644 samples are
-  in Vampire Savior 2's or Vampire Hunter 2's sample ROMs; the 50 others (480 KB) would
-  need room in the 16 MB of samples.
 - Donovan, Huitzil and Pyron: the PlayStation game's endings for them.
 
 ## Testing

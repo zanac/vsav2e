@@ -11,7 +11,8 @@ The zip holds what vsav2e has more than its parent vsav2: the program (eight chi
 the extension at 0x400000), four sprite ROMs (the ones of Vampire Hunter 2 that differ
 from Vampire Savior 2's, with the new tiles of the select screen in their empty space),
 the four chips of the scroll bank (the scroll tiles of the endings), the sound program
-and the two sample ROMs of Vampire Hunter 2, copied as they are.
+(288 KB: vs2e.01, the first 128 KB, and vs2e.02) and the two sample ROMs of Vampire
+Hunter 2, copied as they are.
 
 The select screen is laid out like the PlayStation Darkstalkers 3's and takes its three
 new cells from captures of it: assets/psx/select/*.png, next to this script. The title
@@ -26,7 +27,7 @@ import zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, 'tools'))
 sys.path.insert(0, os.path.join(HERE, 'text'))
-from build import build
+from build import build, sound
 from cps2 import program
 
 PROGRAM_CHIP_NAMES = ['vs2e.03', 'vs2e.04', 'vs2e.05', 'vs2e.06', 'vs2e.07', 'vs2e.08',
@@ -51,8 +52,8 @@ def main():
     files.append((PROGRAM_EXTENSION_NAME, program.swap_byte_pairs(extension)))
     files.extend(zip(UPPER_SPRITE_BANK_NAMES, upper_sprite_bank))
     files.extend(zip(SCROLL_BANK_NAMES, scroll_bank))
-    half = len(sound_program) // 2
-    files.extend(zip(SOUND_PROGRAM_NAMES, (sound_program[:half], sound_program[half:])))
+    first = sound.SOUND_PROGRAM_FIRST_FILE
+    files.extend(zip(SOUND_PROGRAM_NAMES, (sound_program[:first], sound_program[first:])))
     with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:
         for name in HUNTER_SAMPLE_ROMS:
             files.append((name, hunter_archive.read(name)))

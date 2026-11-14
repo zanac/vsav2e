@@ -19,7 +19,9 @@ what moves and every patch (addresses and numbers only). This module applies it:
   Savior 2's own, read by a hook in its object runner;
 - the ending mode jumps to a dispatcher: characters 00-0a and 0c-0e (all but Jedah and
   the three characters Vampire Savior does not have) play Vampire Savior's ending, then
-  Vampire Savior 2's staff credits; the others play Vampire Savior 2's ending.
+  Vampire Savior 2's staff credits; the others play Vampire Savior 2's ending;
+- the scripts ask for the music of Vampire Savior's endings (`moveq #n, d0` before a call
+  of its sound request routine): n becomes the number tools/build/sound.py gave that music.
 """
 import struct
 
@@ -156,6 +158,35 @@ def runner_hook(vsav2e, extension, place, pool, table_entries):
     return hook_end
 
 
+# --- music: Vampire Savior's routine that sends a sound request (number in d0), and the
+# numbers of the music of its endings (two pieces by character, 0x30 and 0x34 are not used)
+SAVIOR_SOUND_REQUEST = 0x21d66
+# It keeps the number in $c(a5) and starts the sender `moveq #2, d0` / `jmp $4d60`, whose
+# case 2 sends that number. Vampire Savior 2's sender (0x51a0) sends its own ending music
+# (0x38) in case 2, so the moved routine jumps to a sender of its own instead.
+SOUND_REQUEST_SENDER_CALL = 0x21d76                 # in Vampire Savior's routine
+SAVIOR2_SENDER_CALL = bytes.fromhex('70024ef9000051a0')   # what it is once moved
+SAVIOR2_SOUND_OFF = 0xa6            # $a6(a5) set: no sound (Vampire Savior 2's sender too)
+SAVIOR2_SAVE_REGISTERS = 0x330e
+SAVIOR2_RESTORE_REGISTERS = 0x3306
+SAVIOR2_SEND_SOUND = 0x31da         # d1: the number
+ENDING_MUSIC = sorted(set(range(0x25, 0x34)) - {0x30} | set(range(0x35, 0x40)) | {0x42, 0x43, 0x44})
+
+
+def music_requests(savior_program):
+    """the `moveq #n, d0` of the moved code followed by a call of (jsr) or a jump to (jmp)
+    the sound request routine, with n one of the ending music: [(address, n)]"""
+    calls = (b'\x4e\xb9' + struct.pack('>I', SAVIOR_SOUND_REQUEST),
+             b'\x4e\xf9' + struct.pack('>I', SAVIOR_SOUND_REQUEST))
+    found = []
+    for first, last in recipe.CODE_RANGES:
+        for address in range(first, last - 6, 2):
+            if (savior_program[address] == 0x70 and savior_program[address + 1] in ENDING_MUSIC
+                    and bytes(savior_program[address + 2:address + 8]) in calls):
+                found.append((address, savior_program[address + 1]))
+    return found
+
+
 class ExtensionWriter:
     def __init__(self, extension, base):
         self.data = extension
@@ -168,10 +199,11 @@ class ExtensionWriter:
         self.data[offset:offset + len(data)] = data
 
 
-def apply(vsav2e, savior_program, savior_archive, extension, extension_base, start, upper_bank):
+def apply(vsav2e, savior_program, savior_archive, extension, extension_base, start, upper_bank, music):
     """Moves the endings into vsav2e (a bytearray: the 4 MB program) and the extension (a
     bytearray from extension_base; the endings go from start). upper_bank: the four chips
-    of the upper sprite bank (SpriteRoms). Returns (end of the extension used, the four
+    of the upper sprite bank (SpriteRoms). music: Vampire Savior's number of each piece of
+    the ending music -> vsav2e's. Returns (end of the extension used, the four
     chips of the scroll bank)."""
     writer = ExtensionWriter(extension, extension_base)
     layout = Layout(start)
@@ -190,6 +222,25 @@ def apply(vsav2e, savior_program, savior_archive, extension, extension_base, sta
         if struct.unpack('>I', savior_program[address:address + 4])[0] != target:
             raise SystemExit('endings: unexpected pointer at 0x%x of Vampire Savior' % address)
         writer.put(layout(address), struct.pack('>I', layout(target)))
+
+    # the music: vsav2e's numbers
+    requests = music_requests(savior_program)
+    if {number for _, number in requests} != set(ENDING_MUSIC):
+        raise SystemExit('endings: unexpected requests of the ending music')
+    for address, number in requests:
+        writer.put(layout(address) + 1, bytes([music[number]]))
+    sender = (layout.end + 1) & ~1
+    long = lambda value: struct.pack('>I', value)
+    writer.put(sender, bytes.fromhex('4a2d%04x' '661c' % SAVIOR2_SOUND_OFF)   # tst.b $a6(a5) / bne.s done
+               + b'\x4e\xb9' + long(SAVIOR2_SAVE_REGISTERS)                # jsr     save
+               + bytes.fromhex('7200' '122d000c' '7400' '7600')              # moveq #0,d1 / move.b $c(a5),d1 / d2, d3 = 0
+               + b'\x4e\xb9' + long(SAVIOR2_SEND_SOUND)                     # jsr     send
+               + b'\x4e\xf9' + long(SAVIOR2_RESTORE_REGISTERS)              # jmp     restore and return
+               + b'\x4e\x75')                                               # done: rts
+    call = layout(SOUND_REQUEST_SENDER_CALL)
+    if bytes(extension[call - extension_base:call - extension_base + 8]) != SAVIOR2_SENDER_CALL:
+        raise SystemExit('endings: unexpected code in the moved sound request routine')
+    writer.put(call, b'\x4e\xf9' + long(sender) + b'\x4e\x71')           # jmp sender / nop
 
     # sprite tiles: at their own numbers in the upper bank
     graphics = savior_graphics(savior_archive)
@@ -210,7 +261,7 @@ def apply(vsav2e, savior_program, savior_archive, extension, extension_base, sta
     writer.put(layout(FILL_ADD) + 2, struct.pack('>H', numbers[(2, FILL_CODE)] - (FILL_CODE - 0x3810)))
 
     # object pools
-    place = (layout.end + 1) & ~1
+    place = sender + 0x24
     for pool, classes in recipe.MOVED_CLASSES.items():
         place = runner_hook(vsav2e, writer, place, pool, [layout(entry) for _, entry in classes])
 

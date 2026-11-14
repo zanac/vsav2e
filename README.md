@@ -40,7 +40,7 @@ Rikuo and Sasquatch playable and fought as opponents, with their voices; the sel
 screen with all 18, laid out like the PlayStation game's (`docs/roster.md`); the
 PlayStation Darkstalkers 3 title screen, with its zoom and flash (`docs/title.md`); the
 per-character endings of Vampire Savior for 14 characters, then Vampire Savior 2's staff
-credits (`docs/endings.md`; their music is still Vampire Savior 2's).
+credits, with Vampire Savior's music (`docs/endings.md`).
 
 ![](screenshots/title.png)
 

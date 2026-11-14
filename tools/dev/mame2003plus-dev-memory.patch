@@ -1,12 +1,12 @@
 Development only, never to be committed to mame2003-plus: lets the test runner
 (tools/dev/libretro_run.c) read and write the 68000 memory, to pick a character, end a
-match or dump the sprite list.
+match or dump the sprite list, and read the RAM of the sound CPU.
 
 diff --git a/src/mame2003/mame2003.c b/src/mame2003/mame2003.c
-index 4c07a1a..d1e1568 100644
+index 4c07a1a..38bd1eb 100644
 --- a/src/mame2003/mame2003.c
 +++ b/src/mame2003/mame2003.c
-@@ -695,6 +695,24 @@ void *retro_get_memory_data(unsigned type) {return 0;}
+@@ -695,6 +695,35 @@ void *retro_get_memory_data(unsigned type) {return 0;}
  size_t retro_get_memory_size(unsigned type) {return 0;}
  bool retro_load_game_special(unsigned game_type, const struct retro_game_info *info, size_t num_info){return false;}
  void retro_cheat_reset(void){}
@@ -27,6 +27,17 @@ index 4c07a1a..d1e1568 100644
 +__attribute__((visibility("default"))) unsigned retro_dev_pc(void)
 +{
 +  return cpunum_get_reg(0, REG_PC);
++}
++unsigned char *cps_qsound_sharedram1(void);
++unsigned char *cps_qsound_sharedram2(void);
++__attribute__((visibility("default"))) unsigned retro_dev_sound_ram8(unsigned address)
++{
++  /* the QSound Z80's RAM: 0xc000-0xcfff (shared with the 68000) and 0xf000-0xffff */
++  if (address >= 0xc000 && address < 0xd000)
++    return cps_qsound_sharedram1()[address - 0xc000];
++  if (address >= 0xf000)
++    return cps_qsound_sharedram2()[address - 0xf000];
++  return 0;
 +}
  void retro_cheat_set(unsigned unused, bool unused1, const char* unused2){}
  void retro_set_video_refresh(retro_video_refresh_t cb) { video_cb = cb; }

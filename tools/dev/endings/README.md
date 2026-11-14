@@ -44,3 +44,19 @@ Things learnt:
   0xcdd0 that the code reads with `movea.l (a0, d0.w)`, not pc-relative.
 - Pool 3 class 04 animates palettes from scripts kept inside its own code, with a table
   of palette bases in the code.
+
+## Music
+
+The MAME scripts run with `drive.lua` (inputs, auto-win, the character poke) and
+`trace.lua` (tile use, run by `drive.lua`); `endqtap.sh`, `endztap.sh` and `endbtap.sh`
+run one character to the end of his ending with each tap.
+
+- `qtap.lua`: logs the 68000's writes to the QSound shared RAM during the ending (the
+  sound numbers asked for).
+- `ztap.lua`: logs the Z80's reads of its fixed area (instrument banks, samples,
+  envelopes) during the ending: the instruments the music uses.
+- `btap.lua`: logs the Z80's reads through its bank window, as places in the sound
+  program: which sequences really play (sound n plays entry n + 1).
+- `music_compare.py`: compares the recordings of an ending in the two games, piece by
+  piece (`tools/dev/libretro_run.c` with `AUDIO` and `WATCH=618001,618003`).
+

@@ -107,17 +107,21 @@ def build(rom_directory, psx_directory):
     # the endings: Vampire Savior's code, from its decrypted program
     savior_code = program.load_program('vsavd', rom_directory)
     endings_start = (extension.end() + 0xff) & ~0xff
+    # the sound: Vampire Hunter 2's voices, Vampire Savior's ending music (new numbers)
+    games = {}
+    for game, prefix in (('vsav2', 'vs2'), ('vhunt2', 'vh2'), ('vsav', 'vm3')):
+        with zipfile.ZipFile(os.path.join(rom_directory, game + '.zip')) as archive:
+            games[game] = (archive.read(prefix + '.01') + archive.read(prefix + '.02'),
+                           archive.read(prefix + '.11m') + archive.read(prefix + '.12m'))
+    sound_program, music = sound.apply(games['vsav2'][0], games['vhunt2'][0], games['vsav2'][1],
+                                                      games['vhunt2'][1], games['vsav'][0], games['vsav'][1],
+                                                      endings.ENDING_MUSIC)
     with zipfile.ZipFile(os.path.join(rom_directory, 'vsav.zip')) as savior_archive:
         endings_end, scroll_bank = endings.apply(vsav2e, savior_code, savior_archive, extension.data,
-                                                 EXTENSION_START, endings_start, upper_bank)
+                                                 EXTENSION_START, endings_start, upper_bank, music)
     extension.used = endings_end - EXTENSION_START
     print('endings: 0x%x-0x%x' % (endings_start, endings_end))
     print('program extension: 0x%x-0x%x' % (EXTENSION_START, extension.end()))
 
-    with zipfile.ZipFile(os.path.join(rom_directory, 'vsav2.zip')) as savior_archive:
-        savior_sound = savior_archive.read('vs2.01') + savior_archive.read('vs2.02')
-    with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:
-        hunter_sound = hunter_archive.read('vh2.01') + hunter_archive.read('vh2.02')
-    sound_program = sound.apply(savior_sound, hunter_sound)
     return (bytes(vsav2e), bytes(extension.data), [bytes(chip) for chip in upper_bank.chips],
             [bytes(chip) for chip in scroll_bank], sound_program)

@@ -20,7 +20,11 @@
                 0x708000-0x709fff), OUT<frame>_palettes.bin (0x90c000-0x90c3ff), OUT<frame>_gfxram.bin
                (0x900000-0x92ffff: scroll layers and all palette pages) and
                 OUT<frame>_ram.bin (0xff8000-0xffbfff), OUT<frame>_wram.bin (all the
-                work RAM, 0xff0000-0xffffff)
+                work RAM, 0xff0000-0xffffff); with a core that has retro_dev_sound_ram8 also
+                OUT<frame>_sound_ram_c000.bin and _sound_ram_f000.bin (the sound CPU's RAM)
+   WATCH        addresses (hex, comma separated) whose bytes are printed on each frame
+                they change, e.g. 618001,618003 (the sound request the 68000 writes to
+                the QSound shared RAM)
    AUTOWIN      from this frame on, player 1 keeps full vitality and player 2 has none
                 (Vampire Savior 2 RAM)
 
@@ -100,6 +104,12 @@ static int autowin_from_frame = -1;
 static bool mashed_buttons[JOYPAD_BUTTONS];
 
 static int current_frame;
+
+/* WATCH: addresses (hex, comma separated) printed on every frame their bytes change */
+#define MAXIMUM_WATCHES 16
+static unsigned watches[MAXIMUM_WATCHES];
+static unsigned watched_values[MAXIMUM_WATCHES];
+static int watch_count;
 static int pixel_format;
 static const char *system_directory = ".";
 static const char *shot_prefix = "shot_";
@@ -373,6 +383,7 @@ int main(int argc, char **argv)
     void (*write8)(unsigned, unsigned);
     unsigned (*read8)(unsigned);
     unsigned (*program_counter)(void) = NULL;
+    unsigned (*sound_read8)(unsigned) = NULL;
     void (*run)(void);
     int frame_count;
     /* struct retro_system_av_info: five geometry fields, then fps and sample rate */
@@ -394,6 +405,15 @@ int main(int argc, char **argv)
     if (getenv("OUT")) shot_prefix = getenv("OUT");
     if (getenv("SHOTS")) shot_count = parse_frames(getenv("SHOTS"), shot_frames);
     if (getenv("DUMPS")) dump_count = parse_frames(getenv("DUMPS"), dump_frames);
+    if (getenv("WATCH")) {
+        char *text = getenv("WATCH");
+        while (*text && watch_count < MAXIMUM_WATCHES) {
+            watches[watch_count] = strtoul(text, &text, 16);
+            watched_values[watch_count++] = 0x100;     /* printed on the first frame */
+            if (*text == ',')
+                text++;
+        }
+    }
     if (getenv("PRESS")) parse_press(getenv("PRESS"));
     if (getenv("POKES")) parse_pokes(getenv("POKES"));
     if (getenv("MASH")) mash_from_frame = atoi(getenv("MASH"));
@@ -403,7 +423,8 @@ int main(int argc, char **argv)
     write8 = (void (*)(unsigned, unsigned))dlsym(core, "retro_dev_write8");
     read8 = (unsigned (*)(unsigned))dlsym(core, "retro_dev_read8");
     program_counter = (unsigned (*)(void))dlsym(core, "retro_dev_pc");
-    if ((!write8 && (poke_count || autowin_from_frame >= 0)) || (!read8 && dump_count)) {
+    sound_read8 = (unsigned (*)(unsigned))dlsym(core, "retro_dev_sound_ram8");
+    if ((!write8 && (poke_count || autowin_from_frame >= 0)) || (!read8 && (dump_count || watch_count))) {
         fprintf(stderr, "POKES, DUMPS and AUTOWIN need a core with mame2003plus-dev-memory.patch\n");
         return 1;
     }
@@ -436,6 +457,22 @@ int main(int argc, char **argv)
         if (write8)
             write_memory(write8);
         run();
+        if (watch_count && read8) {
+            /* WATCH: print the watched bytes when they change */
+            unsigned values[MAXIMUM_WATCHES];
+            bool changed = false;
+            for (index = 0; index < watch_count; index++) {
+                values[index] = read8(watches[index]);
+                changed |= values[index] != watched_values[index];
+                watched_values[index] = values[index];
+            }
+            if (changed) {
+                printf("watch %d:", current_frame);
+                for (index = 0; index < watch_count; index++)
+                    printf(" %02x", values[index]);
+                printf("\n");
+            }
+        }
         for (index = 0; index < dump_count; index++)
             if (dump_frames[index] == current_frame) {
                 dump_memory(read8, 0x708000, 0x70a000, "sprites");
@@ -443,6 +480,11 @@ int main(int argc, char **argv)
                 dump_memory(read8, 0xff8000, 0xffc000, "ram");
                 dump_memory(read8, 0xff0000, 0x1000000, "wram");
                 dump_memory(read8, 0x900000, 0x930000, "gfxram");
+                if (sound_read8) {
+                    /* the sound CPU's RAM: 0xc000-0xcfff (shared with the 68000), 0xf000-0xffff */
+                    dump_memory(sound_read8, 0xc000, 0xd000, "sound_ram_c000");
+                    dump_memory(sound_read8, 0xf000, 0x10000, "sound_ram_f000");
+                }
                 if (program_counter)
                     printf("frame %d: pc %06x\n", current_frame, program_counter());
             }
