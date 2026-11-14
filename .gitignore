@@ -1,0 +1,6 @@
+# ROM sets and run outputs stay out of git
+roms/
+work/
+*.zip
+__pycache__/
+*.npy
