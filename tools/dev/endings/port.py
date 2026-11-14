@@ -425,9 +425,11 @@ class Graphics:
         """(layer, entry address in vsav, vsav code) of the tilemap blocks the endings use"""
         out = []
         for pcs, base, step, offset, layer in (
-                ((0x1f06e, 0x1f07e, 0x1f090, 0x1f0a2, 0x1f0b4, 0x1f0c6, 0x1f0d8, 0x1f0ea), 0x35c824, 4, 0, 3),
+                # the loader decides the layer: 0x1f034 fills scroll 1 (8x8), 0x1f458 scroll 2,
+                # 0x1f856 scroll 3 (32x32) in every script
+                ((0x1f06e, 0x1f07e, 0x1f090, 0x1f0a2, 0x1f0b4, 0x1f0c6, 0x1f0d8, 0x1f0ea), 0x35c824, 4, 0, 1),
                 ((0x1f494, 0x1f4a4), 0x376424, 4, 0x3800, 2),
-                ((0x1f868,), 0x384aa4, 4, 0x600, 1)):
+                ((0x1f868,), 0x384aa4, 4, 0x600, 3)):
             entries = set()
             for pc in pcs:
                 entries |= {a for a in READS.get(pc, set()) if a >= base and (a - base) % step == 0}
@@ -490,7 +492,7 @@ def apply(vsav2e, extension, extension_base, start, upper_chips):
                 position = max(clash)
             new_code[(layer, c)] = position // size
             # CPS2 scroll tiles start 8 MB into the graphics (bank_scroll 4 in MAME)
-            source = SCROLL_GFX_START + c * size
+            source = (SCROLL_GFX_START + c * size) % len(VSAV_GFX)     # MAME wraps the codes
             raw_write(scroll_chips, position, bytes(VSAV_GFX[source:source + size]))
             position += size
     assert position <= SCROLL_BANK_SIZE
