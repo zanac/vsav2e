@@ -1,8 +1,27 @@
+diff --git a/mednafen/ss/cart/extram.c b/mednafen/ss/cart/extram.c
+index 3e8fb41..bdc8fd9 100644
+--- a/mednafen/ss/cart/extram.c
++++ b/mednafen/ss/cart/extram.c
+@@ -42,8 +42,14 @@ static size_t   ExtRAM_Mask;
+ static uint8_t  Cart_ID;
+ 
+ /* Was ExtRAM_RW_DB<uint16_t, false>. */
++/* development hook: which code reads the cartridge RAM (see ss.c); entries 2 and 3 of the histogram
++   are the reads of CPU 0 and CPU 1 */
++extern uint32_t SS_DevPcHist[4][0x800000];
++extern uint32_t SS_DevCurPc;
++extern int SS_DevCurCpu;
+ static MDFN_HOT void ExtRAM_Read16_DB(uint32_t A, uint16_t *DB)
+ {
++   SS_DevPcHist[2 + SS_DevCurCpu][(SS_DevCurPc >> 1) & 0x7FFFFF]++;
+    uint16_t* const ptr = (uint16_t*)((uint8_t*)ExtRAM + (A & ExtRAM_Mask));
+    *DB = *ptr;
+ }
 diff --git a/mednafen/ss/ss.c b/mednafen/ss/ss.c
-index 2a72b71..b71f204 100644
+index 2a72b71..d4d3977 100644
 --- a/mednafen/ss/ss.c
 +++ b/mednafen/ss/ss.c
-@@ -2703,3 +2703,16 @@ int LibRetro_StateAction(StateMem* sm, const unsigned load)
+@@ -2703,3 +2703,17 @@ int LibRetro_StateAction(StateMem* sm, const unsigned load)
  
     return 1;
  }
@@ -11,7 +30,8 @@ index 2a72b71..b71f204 100644
 +/* Development hook (not part of the core proper): a histogram of the addresses the two
 + * SH-2s executed, indexed by (PC >> 1) & 0x7fffff, for finding what code runs while the
 + * game does something (tools/saturn/satrun.c, PCHIST). Passing clear != 0 zeroes it. */
-+uint32_t SS_DevPcHist[2][0x800000];
++uint32_t SS_DevPcHist[4][0x800000];
++uint32_t SS_DevCurPc; int SS_DevCurCpu;
 +const uint32_t *retro_dev_pc_hist(int cpu, int clear)
 +{
 + static uint32_t copy[0x800000];
@@ -20,7 +40,7 @@ index 2a72b71..b71f204 100644
 + return copy;
 +}
 diff --git a/mednafen/ss/ss.h b/mednafen/ss/ss.h
-index 832abcb..98cc19c 100644
+index 832abcb..30aa9dc 100644
 --- a/mednafen/ss/ss.h
 +++ b/mednafen/ss/ss.h
 @@ -174,7 +174,9 @@ extern "C" {
@@ -29,8 +49,8 @@ index 832abcb..98cc19c 100644
  #else
 - #define SS_DIAG_STEP(cpu) ((void)0)
 + /* development hook: how many times each instruction address was executed (see ss.c) */
-+ MDFN_HIDE extern uint32_t SS_DevPcHist[2][0x800000];
-+ #define SS_DIAG_STEP(cpu) (SS_DevPcHist[cpu][(CPU[cpu].PC >> 1) & 0x7FFFFF]++)
++ MDFN_HIDE extern uint32_t SS_DevPcHist[4][0x800000]; MDFN_HIDE extern uint32_t SS_DevCurPc; MDFN_HIDE extern int SS_DevCurCpu;
++ #define SS_DIAG_STEP(cpu) (SS_DevCurPc = CPU[cpu].PC, SS_DevCurCpu = (cpu), SS_DevPcHist[cpu][(CPU[cpu].PC >> 1) & 0x7FFFFF]++)
  #endif
  
   /* Sentinel "no event scheduled" timestamp.  Savestate-visible, so the

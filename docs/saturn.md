@@ -64,23 +64,24 @@ RAM cartridge, which the core does not hand out.
 | `194184`, `194186` | vitality of player 1 (`0xdc` for Donovan); writing 1 empties its bar, so keeping it at its maximum makes it unbeatable |
 | `1940d0` | a counter that goes down slowly with the round (not the clock the bar shows) |
 
-## Looking for the TK decompressor (not found yet)
+## The texture compression (found)
 
-`PCHIST` (satrun, needs the patched core) lists how often each SH-2 instruction address ran
-between two frames. Findings so far, Donovan's ending (state at frame 14000):
+The textures of the sprites of the endings are not stored as they sit in the VDP1 VRAM: `ENDATxx.DAT`
+holds them compressed with a small LZ made of 16-bit words, which the game expands while it
+uploads them (the queue of uploads is filled by the routine at `0x06012286`, the expansion is
+`0x0601606e`/`0x06017268`). `tools/saturn/vdp1lz.py` is the decoder and its docstring describes the
+format (a header, a command stream, a stream of literal words; commands for literals, earlier
+literals, a repeat of the last word and copies from the row above). Checked against the VDP1 VRAM
+of the running game: the same bytes (2-4 bytes of padding after the end of a texture aside).
 
-- the hot loops are all idle or housekeeping: waits for the vertical blank (`0x06014a9c` slave,
-  `0x060111bc` master), memsets (`0x0600ec64`/`0x0600ec70`), the CD block polling
-  (`0x06059980`, registers at `0x25890008`), a CD wait delay (`0x06044400`), a texture swizzle
-  (`0x06043c94`-`0x06043e..`, source `0x060bd1b8`) and an RGB555 palette fade (`0x06039a34`);
-- nothing that looks like a decompressor runs between the state start and the end of the
-  ending, so `END13.BG` is read and expanded earlier (before the bonus screen), or the work is
-  too short to stand out; a histogram of the whole session from the boot (58 windows of 250
-  frames) shows big bursts only at the boot (slave `0x060b9900`, frames 1000-1500) and at
-  `0x06044400` (CD waits, frames 2500/11250/13000).
-
-Next idea: a window of a few frames around the load of `END13.BG` (not yet located), or a read
-watch on the cartridge RAM (`0x22400000`).
+How it was found: `PCHIST` of `satrun` lists the executed addresses between two frames, and the
+core of `beetle-saturn-vdp.patch` also counts which code reads the cartridge RAM (entries 2 and 3
+of the histogram, for CPU 0 and 1, in the same file). The loops that read the cartridge RAM but are
+not the CD driver, a memset or a copy led to the sprite engine at `0x06012340`-`0x06012740` and from
+there to the uploader. What is still to decode is how the sprites are put together: the chunks of
+`ENDATxx.DAT` are listed by 16-byte entries (position, size) that the sprite engine reads, the width
+of a texture comes from there. `END*.BG` (a header `TK`) was not seen being read in the endings
+and keeps its own format.
 
 ## The endings
 

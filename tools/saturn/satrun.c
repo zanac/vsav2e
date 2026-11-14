@@ -299,7 +299,7 @@ int main(int argc, char **argv)
 			char path[1024];
 			snprintf(path, sizeof path, "%s/pchist_%06d.txt", output_directory, current_frame);
 			FILE *file = fopen(path, "w");
-			for (int cpu = 0; cpu < 2; cpu++) {
+			for (int cpu = 0; cpu < 4; cpu++) {
 				const uint32_t *counts = pc_hist(cpu, 1);
 				for (uint32_t i = 0; i < 0x800000; i++)
 					if (counts[i])
