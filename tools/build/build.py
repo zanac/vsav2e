@@ -4,7 +4,7 @@ import struct
 import zipfile
 
 from cps2 import program, sprite_rom
-from build import roster, select_screen, sound, story_text, win_quotes
+from build import names, roster, select_screen, sound, story_text, win_quotes
 from build.extension import EXTENSION_START, Extension
 
 # The region is an immediate word in the boot code (`move.w #region, $90(a5)` at
@@ -78,6 +78,8 @@ def build(rom_directory, captures_directory):
           % (FREE_SPACE_START, free_space, ', '.join('%02x' % i for i in untranslated)))
     story_end = story_text.apply(vsav2e, savior, free_space, FREE_SPACE_END)
     print('endings and Jedah: 0x%x-0x%x' % (free_space, story_end))
+    names.apply(vsav2e)
+
     extension = Extension()
     roster_end = roster.apply(vsav2e, hunter, extension, story_end, FREE_SPACE_END)
     print('frame hook: 0x%x-0x%x' % (story_end, roster_end))

@@ -16,7 +16,7 @@ This repository is private: it also holds material taken from the PlayStation ga
 | `docs/analysis.md` | measurements of the two ROM sets: what differs, what each character weighs, what can be freed |
 | `make_vsav2e.py` | builds `vsav2e.zip` (program, program extension, upper sprite bank, sound program, second half of the samples) from `vsav2.zip`, `vsav.zip` and `vhunt2.zip` |
 | `docs/roster.md` | how Jon Talbain, Rikuo and Sasquatch are put back, the hardware it takes, how it is tested |
-| `tools/build/` | the build steps (region, language, win quotes, endings, roster, select screen, sound) |
+| `tools/build/` | the build steps (region, language, win quotes, endings, roster, select screen, sound, names) |
 | `tools/cps2/sprite_rom.py` | reads and writes tiles in the sprite ROM chips |
 | `assets/psx/select/` | captures of the PlayStation select screen, one per character: the build takes the three new cells from them |
 | `tools/cps2/` | CPS2 program loader, quote text format |
@@ -39,7 +39,7 @@ screen with all 18, laid out like the PlayStation game's (`docs/roster.md`).
 |---|---|---|
 | ![](screenshots/talbain.png) | ![](screenshots/rikuo.png) | ![](screenshots/sasquatch.png) |
 
-To do: the English names.
+Names: the Western ones (Jon Talbain, Rikuo, Lord Raptor, B.B. Hood, Hsien-Ko, Huitzil).
 
 ## Running the tracer
 

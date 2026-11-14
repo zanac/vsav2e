@@ -130,6 +130,12 @@ The three new cells come from the PlayStation screen (`assets/psx/select/*.png`,
 capture per character): the tombstone is the same drawing in other colours, 8 pixels to
 the left and 8 down in the captures.
 
+## Names
+
+Jon Talbain, Rikuo, Lord Raptor, B.B. Hood, Hsien-Ko and Huitzil have their Western
+names on the select and VS screens, in the score ranking and over the vitality bars:
+`tools/build/names.py` (Capcom's own graphics, still in the game).
+
 ## Sound
 
 `tools/build/sound.py` explains the sound program (sequences, instruments, samples) and
@@ -149,5 +155,3 @@ another character the recordings are the same to the sample.
 
 - Vampire Hunter 2's music is not copied (the three characters fight on Vampire Savior
   2's stages, with their music).
-- The names on screen are the Japanese ones (Gallon, Aulbath; also Zabel, Bulleta,
-  Phobos...).
