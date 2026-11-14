@@ -42,7 +42,8 @@ built-in HLE BIOS means no Sony BIOS is needed. Inputs, pictures, RAM dumps and 
 are given per frame in environment variables (see the comment at the top of the file).
 Build: `gcc -O2 -Wall -o psxrun tools/psx/psxrun.c -ldl`; the core is
 `pcsx_rearmed_libretro.so` from https://github.com/libretro/pcsx_rearmed
-(`make -f Makefile.libretro`). The interpreter is used by default (`DYNAREC=1` turns the
+(`make -f Makefile.libretro`), with `tools/psx/pcsx_rearmed-vram.patch` applied so that it
+hands out the GPU VRAM as `RETRO_MEMORY_VIDEO_RAM` (needed only for `VDUMPS`). The interpreter is used by default (`DYNAREC=1` turns the
 recompiler on; it crashed once while RAM was being poked).
 
 Session used so far: START at frame 2600 and 2800 (title, ARCADE), cross from 3000 every
@@ -67,3 +68,14 @@ no ASCII, and no sequence with the same letter pattern (any one-to-one encoding,
 32 bits per letter, with or without spaces). So it is probably a pre-rendered picture
 loaded from the disc for each quote, which would make the PlayStation a source to read
 (screenshots) rather than to extract.
+
+## Select screen
+
+`tools/psx/capture_select.py psxrun core.so disc.cue assets/psx/select` drives the game to
+the select screen and takes one 364 x 240 picture per character once the big portrait has
+slid in (all 18: wheel, portrait, name). The cursor moves are fixed and the emulator is
+deterministic, so every run gives the same pictures. `tools/psx/vram.py` reads VRAM dumps
+(`VDUMPS`) to take the textures with their own palettes.
+
+Character ids in RAM (`1c1112` for player 1): BB Hood 0, Demitri 1, Victor 3,
+Lord Raptor 4, Morrigan 5, Q-Bee 12, Lilith 14 (seen so far).

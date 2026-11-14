@@ -1,0 +1,32 @@
+diff --git a/frontend/libretro.c b/frontend/libretro.c
+index 734fc30..df9d65f 100644
+--- a/frontend/libretro.c
++++ b/frontend/libretro.c
+@@ -2224,6 +2224,7 @@ unsigned retro_get_region(void)
+    return is_pal_mode ? RETRO_REGION_PAL : RETRO_REGION_NTSC;
+ }
+ 
++uint16_t *gpulib_vram_pointer(void); /* vsav2e tooling, in gpulib/gpu.c */
+ void *retro_get_memory_data(unsigned id)
+ {
+    switch (id)
+@@ -2233,6 +2234,8 @@ void *retro_get_memory_data(unsigned id)
+    case RETRO_MEMORY_SAVE_RAM:
+       if (memcard_type[0] == MEMCARDTYPE_LIBRETRO)
+          return Mcd1Data;
++   case RETRO_MEMORY_VIDEO_RAM:   /* vsav2e tooling: the GPU's 1 MB of VRAM */
++      return gpulib_vram_pointer();
+    }
+    return NULL;
+ }
+diff --git a/plugins/gpulib/gpu.c b/plugins/gpulib/gpu.c
+index f04e3a5..42b8fd6 100644
+--- a/plugins/gpulib/gpu.c
++++ b/plugins/gpulib/gpu.c
+@@ -1279,3 +1279,6 @@ void SysPrintf(const char *fmt, ...)
+ #endif
+ 
+ // vim:shiftwidth=2:expandtab
++
++/* vsav2e tooling: lets the libretro frontend hand out the VRAM */
++uint16_t *gpulib_vram_pointer(void) { return gpu.vram; }

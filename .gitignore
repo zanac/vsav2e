@@ -4,3 +4,5 @@ work/
 *.zip
 __pycache__/
 *.npy
+# material extracted from the PlayStation game: kept local until the owner decides
+assets/psx/

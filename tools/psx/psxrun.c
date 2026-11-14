@@ -12,6 +12,9 @@
  *                                      x = triangle)
  *   SHOTS  "frame frame ..."          save the picture of those frames as OUTDIR/fNNNNNN.ppm
  *   DUMPS  "frame frame ..."          save main RAM (2 MB) as OUTDIR/ram_NNNNNN.bin
+ *   VDUMPS "frame frame ..."          save the GPU VRAM (1024 x 512 16-bit words) as
+ *                                     OUTDIR/vram_NNNNNN.bin (needs a core that hands it
+ *                                     out as RETRO_MEMORY_VIDEO_RAM, see docs/psx.md)
  *   POKES  "first-last:address:value;..."  write a byte of main RAM on every frame of the
  *                                     range (address is a RAM offset, 0..0x1fffff, in hex)
  *   STATE_SAVE "frame:file"           save a state at that frame
@@ -35,6 +38,8 @@
 #define RETRO_ENVIRONMENT_GET_LOG_INTERFACE    27
 #define RETRO_ENVIRONMENT_GET_SAVE_DIRECTORY   31
 #define RETRO_MEMORY_SYSTEM_RAM                 2
+#define RETRO_MEMORY_VIDEO_RAM                  3
+#define PSX_VRAM_BYTES                    0x100000
 #define PIXEL_FORMAT_0RGB1555 0
 #define PIXEL_FORMAT_XRGB8888 1
 #define PIXEL_FORMAT_RGB565   2
@@ -53,6 +58,7 @@ struct ram_poke { int first_frame, last_frame; uint32_t address; uint8_t value; 
 static struct button_press presses[MAX_EVENTS]; static int press_count;
 static int shot_frames[MAX_EVENTS];             static int shot_count;
 static int dump_frames[MAX_EVENTS];             static int dump_count;
+static int vram_dump_frames[MAX_EVENTS];        static int vram_dump_count;
 static struct ram_poke pokes[MAX_EVENTS];       static int poke_count;
 
 static const char *output_directory;
@@ -250,6 +256,7 @@ int main(int argc, char **argv)
 	parse_presses(getenv("PRESS"));
 	parse_frame_list(getenv("SHOTS"), shot_frames, &shot_count);
 	parse_frame_list(getenv("DUMPS"), dump_frames, &dump_count);
+	parse_frame_list(getenv("VDUMPS"), vram_dump_frames, &vram_dump_count);
 	parse_pokes(getenv("POKES"));
 
 	/* optional save states */
@@ -278,6 +285,15 @@ int main(int argc, char **argv)
 			char path[1024];
 			snprintf(path, sizeof path, "%s/ram_%06d.bin", output_directory, current_frame);
 			FILE *file = fopen(path, "wb"); fwrite(ram, 1, 0x200000, file); fclose(file);
+		}
+		if (frame_listed(vram_dump_frames, vram_dump_count, current_frame)) {
+			const uint8_t *vram = retro_get_memory_data_fn(RETRO_MEMORY_VIDEO_RAM);
+			if (vram) {
+				char path[1024];
+				snprintf(path, sizeof path, "%s/vram_%06d.bin", output_directory, current_frame);
+				FILE *file = fopen(path, "wb"); fwrite(vram, 1, PSX_VRAM_BYTES, file); fclose(file);
+			} else
+				fprintf(stderr, "the core does not hand out its VRAM\n");
 		}
 		if (current_frame == state_save_frame) {
 			size_t size = retro_serialize_size_fn(); void *buffer = malloc(size);
