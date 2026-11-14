@@ -371,7 +371,7 @@ STEP_FRAME_READERS = (0x1afaa, 0x1b7f4)      # movea.l 4(a0), a0: the frame of a
 STEP_LOOP_READERS = (0x1504e, 0x151a0)
 # tile animations of scroll 2 (16-byte steps): the tile block of a step
 TILE_STEP_BLOCK_READERS = (0x15206,)               # movea.l 8(a0), a0: the step a loop goes back to
-FRAME_TYPE_READERS = (0x1afae,)              # move.w (a0)+, d0: the type of a frame
+FRAME_TYPE_READERS = (0x1afae, 0x1b7f8)              # move.w (a0)+, d0: the type of a frame
 
 SCROLL_BANK_REGISTER = 0x8040c0              # vsav2e: bit 0-2 scroll 1-3 tiles from the scroll bank
 SCROLL_BANK_SIZE = 0x1000000
@@ -405,7 +405,10 @@ class Graphics:
     def sprite_tiles(self):
         """tiles of the moved frames (all drawn from sprite bank 1): their numbers"""
         tiles = set()
-        for f in READS.get(0x1afae, set()):
+        frames = set()
+        for pc in FRAME_TYPE_READERS:
+            frames |= {f for f in READS.get(pc, set()) if f % 2 == 0}
+        for f in frames:
             t = W(f)
             if t == 2:
                 n = W(f + 4) + 1
@@ -464,7 +467,10 @@ def apply(vsav2e, extension, extension_base, start, upper_chips):
         extension[ext(n):ext(n) + 4] = nv.to_bytes(4, 'big'); fixed.add(a)
     for a in long_fields(STEP_FRAME_READERS) | long_fields(STEP_LOOP_READERS) | long_fields(TILE_STEP_BLOCK_READERS):
         fix(a)
-    for f in READS.get(0x1afae, set()):
+    frames = set()
+    for pc in FRAME_TYPE_READERS:
+        frames |= {f for f in READS.get(pc, set()) if f % 2 == 0}
+    for f in frames:
         if W(f) in (0, 2):
             fix(f + 6)
     # graphics: sprite tiles at their own numbers in the upper bank
