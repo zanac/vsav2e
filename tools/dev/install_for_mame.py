@@ -5,6 +5,10 @@ Development helper: lays vsav2e's program out as MAME's `vsav2d` set so that a s
 MAME can run it (`mame vsav2d -rompath TEST_DIRECTORY`; MAME only warns about the
 checksums). It copies vsav2.zip from ROM_DIRECTORY into TEST_DIRECTORY with the program
 chips replaced.
+
+A stock CPS2 has neither the program extension nor the second sprite bank, so this only
+runs up to the select screen: use it for the attract mode and to trace code with MAME's
+debugger; the rest is tested in mame2003-plus (tools/dev/libretro_run.c).
 """
 import os
 import sys

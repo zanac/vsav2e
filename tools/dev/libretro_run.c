@@ -8,16 +8,21 @@
    OUT          prefix of the screenshots (default "shot_"): OUT<frame>.ppm
    SHOTS        frames to save, "950 1700 2400"
    PRESS        "frame:button;frame:button": the button of player 1 is held 4 frames.
-                Buttons: coin start up down left right b1 b2 b3 b4 b5 b6
+                Buttons: coin start up down left right b1 b2 b3 b4 b5 b6; with "p2." in
+                front ("1100:p2.start") the button is player 2's
    MASH         from this frame on, random directions and buttons for player 1
    SEED         seed of MASH (default 1)
    POKES        "first-last:address:value;..." (hexadecimal address and value): the byte
                 is written to the 68000 memory on every frame from first to last
+   DUMPS        frames at which memory is saved: OUT<frame>_sprites.bin (the sprite list,
+                0x708000-0x709fff), OUT<frame>_palettes.bin (0x90c000-0x90c3ff) and
+                OUT<frame>_ram.bin (0xff8000-0xffbfff)
    AUTOWIN      from this frame on, player 1 keeps full vitality and player 2 has none
                 (Vampire Savior 2 RAM)
 
-   POKES and AUTOWIN need a core built with tools/dev/mame2003plus-dev-memory.patch,
-   which adds retro_dev_write8(); without it they are refused.
+   POKES, DUMPS and AUTOWIN need a core built with
+   tools/dev/mame2003plus-dev-memory.patch, which adds retro_dev_write8() and
+   retro_dev_read8(); without it they are refused.
 
    Build: cc -O2 -o libretro_run libretro_run.c -ldl */
 #include <dlfcn.h>
@@ -74,7 +79,7 @@ static const struct { const char *name; int joypad_id; } button_names[] = {
 #define BUTTON_NAME_COUNT ((int)(sizeof button_names / sizeof button_names[0]))
 #define PRESS_FRAMES 4
 
-struct press { int frame; int joypad_id; };
+struct press { int frame; unsigned port; int joypad_id; };
 struct poke { int first_frame, last_frame; unsigned address, value; };
 
 #define MAXIMUM_ITEMS 256
@@ -84,6 +89,8 @@ static struct poke pokes[MAXIMUM_ITEMS];
 static int poke_count;
 static int shot_frames[MAXIMUM_ITEMS];
 static int shot_count;
+static int dump_frames[MAXIMUM_ITEMS];
+static int dump_count;
 static int mash_from_frame = -1;
 static int autowin_from_frame = -1;
 static bool mashed_buttons[JOYPAD_BUTTONS];
@@ -192,13 +199,13 @@ static int16_t input_state(unsigned port, unsigned device, unsigned index, unsig
 
     (void)index;
     /* joypad only: the core also asks for keys, and key 9 (Tab, its menu) is not button 9 */
-    if (port != 0 || device != RETRO_DEVICE_JOYPAD || id >= JOYPAD_BUTTONS)
+    if (port > 1 || device != RETRO_DEVICE_JOYPAD || id >= JOYPAD_BUTTONS)
         return 0;
     for (item = 0; item < press_count; item++)
-        if (presses[item].joypad_id == (int)id && current_frame >= presses[item].frame
+        if (presses[item].port == port && presses[item].joypad_id == (int)id && current_frame >= presses[item].frame
             && current_frame < presses[item].frame + PRESS_FRAMES)
             return 1;
-    return mashed_buttons[id];
+    return port == 0 && mashed_buttons[id];
 }
 
 /* MASH: every 6 frames, new random directions and attack buttons */
@@ -225,16 +232,23 @@ static void parse_press(const char *text)
     strncpy(buffer, text, sizeof buffer - 1);
     buffer[sizeof buffer - 1] = 0;
     for (item = strtok(buffer, ";"); item; item = strtok(NULL, ";")) {
-        char name[32];
+        char text[32];
+        const char *name = text;
+        unsigned port = 0;
         int frame, index, found = 0;
 
-        if (sscanf(item, "%d:%31s", &frame, name) != 2) {
+        if (sscanf(item, "%d:%31s", &frame, text) != 2) {
             fprintf(stderr, "PRESS: cannot read \"%s\"\n", item);
             exit(1);
+        }
+        if (!strncmp(name, "p2.", 3)) {
+            port = 1;
+            name += 3;
         }
         for (index = 0; index < BUTTON_NAME_COUNT; index++)
             if (!strcmp(name, button_names[index].name) && press_count < MAXIMUM_ITEMS) {
                 presses[press_count].frame = frame;
+                presses[press_count].port = port;
                 presses[press_count].joypad_id = button_names[index].joypad_id;
                 press_count++;
                 found = 1;
@@ -264,14 +278,35 @@ static void parse_pokes(const char *text)
     }
 }
 
-static void parse_shots(const char *text)
+/* a list of frame numbers, for SHOTS and DUMPS */
+static int parse_frames(const char *text, int *frames)
 {
     char buffer[4096], *item;
+    int count = 0;
 
     strncpy(buffer, text, sizeof buffer - 1);
     buffer[sizeof buffer - 1] = 0;
-    for (item = strtok(buffer, " ,"); item && shot_count < MAXIMUM_ITEMS; item = strtok(NULL, " ,"))
-        shot_frames[shot_count++] = atoi(item);
+    for (item = strtok(buffer, " ,"); item && count < MAXIMUM_ITEMS; item = strtok(NULL, " ,"))
+        frames[count++] = atoi(item);
+    return count;
+}
+
+/* DUMPS: saves a range of the 68000 memory */
+static void dump_memory(unsigned (*read8)(unsigned), unsigned start, unsigned end, const char *name)
+{
+    char path[1024];
+    FILE *file;
+    unsigned address;
+
+    snprintf(path, sizeof path, "%s%06d_%s.bin", shot_prefix, current_frame, name);
+    file = fopen(path, "wb");
+    if (!file) {
+        perror(path);
+        exit(1);
+    }
+    for (address = start; address < end; address++)
+        fputc(read8(address), file);
+    fclose(file);
 }
 
 static void write_word(void (*write8)(unsigned, unsigned), unsigned address, unsigned value)
@@ -314,6 +349,7 @@ int main(int argc, char **argv)
     void *core;
     struct retro_game_info game = { NULL, NULL, 0, NULL };
     void (*write8)(unsigned, unsigned);
+    unsigned (*read8)(unsigned);
     void (*run)(void);
     int frame_count;
     char av_info[256];
@@ -332,7 +368,8 @@ int main(int argc, char **argv)
 
     if (getenv("SYSTEM_DIR")) system_directory = getenv("SYSTEM_DIR");
     if (getenv("OUT")) shot_prefix = getenv("OUT");
-    if (getenv("SHOTS")) parse_shots(getenv("SHOTS"));
+    if (getenv("SHOTS")) shot_count = parse_frames(getenv("SHOTS"), shot_frames);
+    if (getenv("DUMPS")) dump_count = parse_frames(getenv("DUMPS"), dump_frames);
     if (getenv("PRESS")) parse_press(getenv("PRESS"));
     if (getenv("POKES")) parse_pokes(getenv("POKES"));
     if (getenv("MASH")) mash_from_frame = atoi(getenv("MASH"));
@@ -340,8 +377,9 @@ int main(int argc, char **argv)
     srand(getenv("SEED") ? atoi(getenv("SEED")) : 1);
 
     write8 = (void (*)(unsigned, unsigned))dlsym(core, "retro_dev_write8");
-    if (!write8 && (poke_count || autowin_from_frame >= 0)) {
-        fprintf(stderr, "POKES and AUTOWIN need a core with retro_dev_write8 (mame2003plus-dev-memory.patch)\n");
+    read8 = (unsigned (*)(unsigned))dlsym(core, "retro_dev_read8");
+    if ((!write8 && (poke_count || autowin_from_frame >= 0)) || (!read8 && dump_count)) {
+        fprintf(stderr, "POKES, DUMPS and AUTOWIN need a core with mame2003plus-dev-memory.patch\n");
         return 1;
     }
 
@@ -361,9 +399,17 @@ int main(int argc, char **argv)
     run = (void (*)(void))core_function(core, "retro_run");
     for (current_frame = 0; current_frame < frame_count; current_frame++) {
         mash_buttons();
+        int index;
+
         if (write8)
             write_memory(write8);
         run();
+        for (index = 0; index < dump_count; index++)
+            if (dump_frames[index] == current_frame) {
+                dump_memory(read8, 0x708000, 0x70a000, "sprites");
+                dump_memory(read8, 0x90c000, 0x90c400, "palettes");
+                dump_memory(read8, 0xff8000, 0xffc000, "ram");
+            }
     }
     return 0;
 }

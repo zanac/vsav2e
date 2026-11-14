@@ -1,8 +1,11 @@
 """Builds the vsav2e program from the original ones, step by step."""
+import os
 import struct
+import zipfile
 
-from cps2 import program
-from build import roster, story_text, win_quotes
+from cps2 import program, sprite_rom
+from build import roster, select_screen, story_text, win_quotes
+from build.extension import EXTENSION_START, Extension
 
 # The region is an immediate word in the boot code (`move.w #region, $90(a5)` at
 # 0x10cc): 0 Japan, 2 USA, 4 Hispanic, 6 Oceania, 8 Asia, 0xa Europe, 0xc Brazil.
@@ -38,9 +41,15 @@ FREE_SPACE_START = 0xebc00
 FREE_SPACE_END = 0xff000
 
 
-def build(rom_directory):
-    """The vsav2e program as the 68000 sees it: (the 4 MB of the CPS2 program space,
-    the extension at 0x400000)."""
+# the sprite ROMs of Vampire Hunter 2 that become vsav2e's upper sprite bank (the other
+# four are the same chips as Vampire Savior 2's)
+HUNTER_SPRITE_ROMS = ('vh2.13m', 'vh2.15m', 'vh2.17m', 'vh2.19m')
+
+
+def build(rom_directory, captures_directory):
+    """vsav2e as (the 4 MB of the CPS2 program space as the 68000 sees it, the program
+    extension at 0x400000, the four chips of the upper sprite bank that are not Vampire
+    Savior 2's). captures_directory holds the PlayStation select screen captures."""
     # the decrypted set is the base: its code can be patched, and the result needs no
     # encryption key (it runs as a "Phoenix" set)
     vsav2e = bytearray(program.load_program('vsav2d', rom_directory))
@@ -68,6 +77,14 @@ def build(rom_directory):
           % (FREE_SPACE_START, free_space, ', '.join('%02x' % i for i in untranslated)))
     story_end = story_text.apply(vsav2e, savior, free_space, FREE_SPACE_END)
     print('endings and Jedah: 0x%x-0x%x' % (free_space, story_end))
-    roster_end, extension = roster.apply(vsav2e, hunter, story_end, FREE_SPACE_END)
+    extension = Extension()
+    roster_end = roster.apply(vsav2e, hunter, extension, story_end, FREE_SPACE_END)
     print('frame hook: 0x%x-0x%x' % (story_end, roster_end))
-    return bytes(vsav2e), extension
+
+    with zipfile.ZipFile(os.path.join(rom_directory, 'vhunt2.zip')) as hunter_archive:
+        upper_bank = sprite_rom.SpriteRoms([hunter_archive.read(name) for name in HUNTER_SPRITE_ROMS])
+    select_end = select_screen.apply(vsav2e, hunter, extension, upper_bank, captures_directory,
+                                     roster_end, FREE_SPACE_END)
+    print('select screen routines: 0x%x-0x%x' % (roster_end, select_end))
+    print('program extension: 0x%x-0x%x' % (EXTENSION_START, extension.end()))
+    return bytes(vsav2e), bytes(extension.data), [bytes(chip) for chip in upper_bank.chips]

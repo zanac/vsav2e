@@ -56,8 +56,9 @@ other tables; its frames are at `0x12a310`-`0x134fc0` (Jon Talbain), `0x1cc57e`-
 
 The tiles are not copied: the sprite ROMs of Vampire Hunter 2 are the **upper half of a
 64 MB sprite space**, at the same tile numbers, and bit 12 of a sprite's Y selects that
-half. The four chips that differ (`vh2.13m`, `.15m`, `.17m`, `.19m`) go in `vsav2e.zip`
-as they are; the other four are Vampire Savior 2's, loaded twice.
+half. The four chips that differ (`vh2.13m`, `.15m`, `.17m`, `.19m`) go in `vsav2e.zip` as
+`vs2e.21m`, `.23m`, `.25m`, `.27m`, with the new tiles of the select screen in tiles that
+were empty (from `0x1fc00`); the other four are Vampire Savior 2's, loaded twice.
 
 ## Hardware
 
@@ -73,15 +74,17 @@ already in mame2003-plus), and nothing else of it:
 mame2003-plus: `MACHINE_DRIVER( vsav2e )` in `src/drivers/cps2.c` (branch `vsav2e` of the
 fork).
 
-On a stock CPS2 (MAME's `vsav2d`, `tools/dev/install_for_mame.py`) the build still runs:
-only the three characters are wrong there.
+On a stock CPS2 (MAME's `vsav2d`, `tools/dev/install_for_mame.py`) the build only runs
+up to the select screen, whose faces are a frame of the extension: MAME is still good for
+the attract mode and for tracing code that does not depend on the extension.
 
 ## Testing
 
 MAME cannot run the extended set, so it is tested in the mame2003-plus core with
 `tools/dev/libretro_run.c`, a small libretro frontend with no display: inputs,
-screenshots and memory writes by frame, like `tools/trace/drive.lua`. The memory writes
-(to pick a character, to win a match) need a core built with
+screenshots, memory writes and memory dumps by frame, like `tools/trace/drive.lua`, for
+both players. Writing and dumping memory (to pick a character, to win a match, to look at
+the sprite list and the palettes) need a core built with
 `tools/dev/mame2003plus-dev-memory.patch`, which is for development only.
 
 ```
@@ -94,10 +97,41 @@ POKES="1300-1800:ff8782:02" MASH=1900 AUTOWIN=1700 \
 `roms/` holds `vsav2e.zip` and its parent `vsav2.zip` (MAME's, with `vsav2d/phoenix.key`
 inside).
 
+## The select screen
+
+All 18 characters and the random choice, laid out like the PlayStation Darkstalkers 3's
+screen: `tools/build/select_screen.py` explains the screen and each change (the new
+cells, the faces and their palettes, the cursors, the cursor moves, the random choice).
+What it needs to know about the game:
+
+| What | Where (`vsav2`) |
+|---|---|
+| Frame with all the faces | `0x2a6e52`, pointed to by `0x2a17ba`; Vampire Hunter 2's is at `0x2932d0` in its program |
+| Cursor frames | three tables of 32 pointers by character id: `0x2a17be` (player 1), `0x2a183e` (player 2), `0x2a18be` |
+| Cursor position | `0x6bc78`: x, y words by id (y goes up) |
+| Cursor moves | `0x1588e`: 8 ids by id, for right, left, down, up, right-down, left-down, right-up, left-up; the joystick bits pick the column through the table at `0x1fe2c` |
+| Random choice | list of 15 ids at `0x1f8b4`, read at `0x1f8ac` |
+| Sprite palettes | block of 32 at `0x3baf3c` (scene 1 of the blocks from `0x3bab3c`, 0x400 apart), loaded at `0x1ac9c` and `0x1aeb6` |
+
+Character ids: `00` Bulleta (B.B. Hood), `01` Demitri, `02` Gallon (Jon Talbain), `03`
+Victor, `04` Zabel (Lord Raptor), `05` Morrigan, `06` Anakaris, `07` Felicia, `08`
+Bishamon, `09` Aulbath (Rikuo), `0a` Sasquatch, `0b` the random choice, `0c` Q-Bee, `0d`
+Lei-Lei (Hsien-Ko), `0e` Lilith, `0f` Jedah, `10` Phobos (Huitzil), `11` Pyron, `12` a dark
+Gallon, `13` Donovan.
+
+Sprite palettes on this screen: `01` texts, `03` the speed choice, `04` the name, `05`-`14`
+the faces, `15` and `17` player 1's character (main and second palette), `18` and `1a`
+player 2's, `1b` and `1c` the two portraits, `1e` and `1f` the cursors. `16` and `19` were
+free; `1d` was the pink filling of three cells; `00` and `02` are loaded but not drawn
+with (their colours in the block are also read by other code).
+
+The three new cells come from the PlayStation screen (`assets/psx/select/*.png`, one
+capture per character): the tombstone is the same drawing in other colours, 8 pixels to
+the left and 8 down in the captures.
+
 ## Not done yet
 
-- The select screen: the three characters can only be reached by writing their id.
-- Sound: Vampire Savior 2's QSound ROMs lack their voices (2.8 MB of Vampire Hunter 2's
-  samples are not in them).
+- Sound: Vampire Savior 2's QSound ROMs lack the three characters' voices (2.8 MB of
+  Vampire Hunter 2's samples are not in them).
 - The names on screen are the Japanese ones (Gallon, Aulbath; also Zabel, Bulleta,
   Phobos...).

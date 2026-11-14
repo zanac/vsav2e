@@ -37,9 +37,9 @@ The shape is where each sprite goes: x and y (two words) for each one.
 import difflib
 import struct
 
+from build.extension import EXTENSION_START
+
 PROGRAM_SIZE = 0x400000
-EXTENSION_START = 0x400000
-EXTENSION_SIZE = 0x80000
 
 FRAME_TYPE_SHARED_ATTRIBUTES = 0
 FRAME_TYPE_OWN_ATTRIBUTES = 2
@@ -150,23 +150,6 @@ def match_animation_steps(savior_steps, hunter_steps):
     return pairs
 
 
-class Extension:
-    """the program ROM from 0x400000, filled from its start"""
-
-    def __init__(self):
-        self.data = bytearray(b'\xff' * EXTENSION_SIZE)
-        self.used = 0
-
-    def add(self, block):
-        """stores a block (word aligned) and returns its address"""
-        if self.used + len(block) > EXTENSION_SIZE:
-            raise SystemExit('roster: the program extension is full')
-        address = EXTENSION_START + self.used
-        self.data[self.used:self.used + len(block)] = block
-        self.used += len(block) + (len(block) & 1)
-        return address
-
-
 def copy_frames(hunter, frame_addresses, extension):
     """Copies frames of Vampire Hunter 2, with their shapes, to the extension.
     Returns {frame address in Vampire Hunter 2: address of the copy}."""
@@ -236,15 +219,13 @@ def hook_frame_dispatch(vsav2e, hook_address):
     return hook_address + len(HOOK_CODE)
 
 
-def apply(vsav2e, hunter, free_space_start, free_space_end):
-    """Restores the three characters in the vsav2e program (a bytearray).
-    Returns (first free address after the hook, the program extension as bytes)."""
+def apply(vsav2e, hunter, extension, free_space_start, free_space_end):
+    """Restores the three characters in the vsav2e program (a bytearray), with their
+    frames in the program extension. Returns the first free address after the hook."""
     if free_space_start + len(HOOK_CODE) > free_space_end:
         raise SystemExit('roster: no room for the frame hook')
     free_space = hook_frame_dispatch(vsav2e, free_space_start + (free_space_start & 1))
-    extension = Extension()
     for name, stripped_pointer, hunter_frames in CHARACTERS:
         pointers, frames = restore_character(vsav2e, hunter, extension, name, stripped_pointer, hunter_frames)
         print('roster: %-11s %4d frame pointers, %3d frames' % (name, pointers, frames))
-    print('roster: program extension 0x%x-0x%x' % (EXTENSION_START, EXTENSION_START + extension.used))
-    return free_space, bytes(extension.data)
+    return free_space
