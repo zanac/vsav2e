@@ -79,3 +79,22 @@ deterministic, so every run gives the same pictures. `tools/psx/vram.py` reads V
 
 Character ids in RAM (`1c1112` for player 1): BB Hood 0, Demitri 1, Victor 3,
 Lord Raptor 4, Morrigan 5, Q-Bee 12, Lilith 14 (seen so far).
+
+## Endings of Donovan, Huitzil and Pyron
+
+Vampire Savior has no ending for these three; the PlayStation game does, in the same
+form as the arcade's (a picture in a window, the text on the band under it, then the
+staff credits). `tools/psx/capture_endings.py psxrun core.so disc.cue directory` plays the
+arcade mode with each of them and saves the ending, one 364 x 240 picture every 20
+frames: the character is poked on the select screen (`1c1112`: `0x13` Donovan, `0x10`
+Huitzil, `0x11` Pyron, the arcade ids), player 1's vitality is kept full, cross is pressed
+every 128 frames until the last fight (Jedah) is won, and nothing during the ending.
+
+| | Frames | Pictures | Text |
+|---|---|---|---|
+| Donovan | 82100-84800 | Anita asleep, the Dyrek blade over her, Donovan's hand on it | 9 lines |
+| Huitzil | 102500-105800 | Huitzil broken, the robots, a soldier, the beam on the city | 12 lines |
+| Pyron | 73700-75800 | Pyron and the burning world, then the galaxy | 7 lines |
+
+The first pictures have the initials of the score ranking in the top left corner (the
+game asks for them while the ending plays). The pictures stay outside the repository.
