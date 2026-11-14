@@ -1,3 +1,39 @@
+diff --git a/mednafen/ss/ss.c b/mednafen/ss/ss.c
+index 2a72b71..b71f204 100644
+--- a/mednafen/ss/ss.c
++++ b/mednafen/ss/ss.c
+@@ -2703,3 +2703,16 @@ int LibRetro_StateAction(StateMem* sm, const unsigned load)
+ 
+    return 1;
+ }
++
++
++/* Development hook (not part of the core proper): a histogram of the addresses the two
++ * SH-2s executed, indexed by (PC >> 1) & 0x7fffff, for finding what code runs while the
++ * game does something (tools/saturn/satrun.c, PCHIST). Passing clear != 0 zeroes it. */
++uint32_t SS_DevPcHist[2][0x800000];
++const uint32_t *retro_dev_pc_hist(int cpu, int clear)
++{
++ static uint32_t copy[0x800000];
++ memcpy(copy, SS_DevPcHist[cpu], sizeof copy);
++ if(clear) memset(SS_DevPcHist[cpu], 0, sizeof copy);
++ return copy;
++}
+diff --git a/mednafen/ss/ss.h b/mednafen/ss/ss.h
+index 832abcb..98cc19c 100644
+--- a/mednafen/ss/ss.h
++++ b/mednafen/ss/ss.h
+@@ -174,7 +174,9 @@ extern "C" {
+  MDFN_HIDE extern uint64_t SS_DiagSteps[2];
+  #define SS_DIAG_STEP(cpu) (SS_DiagSteps[cpu]++)
+ #else
+- #define SS_DIAG_STEP(cpu) ((void)0)
++ /* development hook: how many times each instruction address was executed (see ss.c) */
++ MDFN_HIDE extern uint32_t SS_DevPcHist[2][0x800000];
++ #define SS_DIAG_STEP(cpu) (SS_DevPcHist[cpu][(CPU[cpu].PC >> 1) & 0x7FFFFF]++)
+ #endif
+ 
+  /* Sentinel "no event scheduled" timestamp.  Savestate-visible, so the
 diff --git a/mednafen/ss/vdp2.c b/mednafen/ss/vdp2.c
 index 53334ec..fa55f02 100644
 --- a/mednafen/ss/vdp2.c

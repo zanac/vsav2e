@@ -64,6 +64,24 @@ RAM cartridge, which the core does not hand out.
 | `194184`, `194186` | vitality of player 1 (`0xdc` for Donovan); writing 1 empties its bar, so keeping it at its maximum makes it unbeatable |
 | `1940d0` | a counter that goes down slowly with the round (not the clock the bar shows) |
 
+## Looking for the TK decompressor (not found yet)
+
+`PCHIST` (satrun, needs the patched core) lists how often each SH-2 instruction address ran
+between two frames. Findings so far, Donovan's ending (state at frame 14000):
+
+- the hot loops are all idle or housekeeping: waits for the vertical blank (`0x06014a9c` slave,
+  `0x060111bc` master), memsets (`0x0600ec64`/`0x0600ec70`), the CD block polling
+  (`0x06059980`, registers at `0x25890008`), a CD wait delay (`0x06044400`), a texture swizzle
+  (`0x06043c94`-`0x06043e..`, source `0x060bd1b8`) and an RGB555 palette fade (`0x06039a34`);
+- nothing that looks like a decompressor runs between the state start and the end of the
+  ending, so `END13.BG` is read and expanded earlier (before the bonus screen), or the work is
+  too short to stand out; a histogram of the whole session from the boot (58 windows of 250
+  frames) shows big bursts only at the boot (slave `0x060b9900`, frames 1000-1500) and at
+  `0x06044400` (CD waits, frames 2500/11250/13000).
+
+Next idea: a window of a few frames around the load of `END13.BG` (not yet located), or a read
+watch on the cartridge RAM (`0x22400000`).
+
 ## The endings
 
 `tools/saturn/capture_endings.py` replays the whole session (it is deterministic): the
