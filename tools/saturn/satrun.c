@@ -19,6 +19,10 @@
  *                                     (512 KB), vdp2cram_ (4 KB), vdp2regs_ (512 bytes) and
  *                                     vdp1vram_ (512 KB); each 16-bit word is stored
  *                                     big-endian, as the Saturn sees it
+ *   PCHIST "frame frame ..."          write the addresses the two SH-2s executed since the
+ *                                     previous listed frame (or the start) as OUTDIR/pchist_NNNNNN.txt,
+ *                                     lines "cpu address count" (address: the low 24 bits; the
+ *                                     patched core is needed, see beetle-saturn-vdp.patch)
  *   POKES  "first-last:address:value;..."  write a byte of main RAM on every frame of the
  *                                     range (address is an offset in the 2 MB of work RAM, in hex)
  *   STATE_SAVE "frame:file"           save a state at that frame
@@ -62,6 +66,7 @@ static struct button_press presses[MAX_EVENTS]; static int press_count;
 static int shot_frames[MAX_EVENTS];             static int shot_count;
 static int dump_frames[MAX_EVENTS];             static int dump_count;
 static int vram_dump_frames[MAX_EVENTS];        static int vram_dump_count;
+static int pchist_frames[MAX_EVENTS];           static int pchist_count;
 static struct ram_poke pokes[MAX_EVENTS];       static int poke_count;
 
 static const char *output_directory;
@@ -256,6 +261,7 @@ int main(int argc, char **argv)
 	parse_frame_list(getenv("SHOTS"), shot_frames, &shot_count);
 	parse_frame_list(getenv("DUMPS"), dump_frames, &dump_count);
 	parse_frame_list(getenv("VDUMPS"), vram_dump_frames, &vram_dump_count);
+	parse_frame_list(getenv("PCHIST"), pchist_frames, &pchist_count);
 	parse_pokes(getenv("POKES"));
 
 	/* optional save states */
@@ -274,6 +280,7 @@ int main(int argc, char **argv)
 
 	/* the development hook of the patched core (tools/saturn/beetle-saturn-vdp.patch) */
 	const uint16_t *(*vdp_ram)(int, size_t *) = dlsym(core, "retro_dev_vdp_ram");
+	const uint32_t *(*pc_hist)(int, int) = dlsym(core, "retro_dev_pc_hist");
 
 	uint8_t *ram = retro_get_memory_data_fn(RETRO_MEMORY_SYSTEM_RAM);
 	for (current_frame = 0; current_frame < frame_total; current_frame++) {
@@ -287,6 +294,18 @@ int main(int argc, char **argv)
 			char path[1024];
 			snprintf(path, sizeof path, "%s/ram_%06d.bin", output_directory, current_frame);
 			FILE *file = fopen(path, "wb"); fwrite(ram, 1, 0x200000, file); fclose(file);
+		}
+		if (pc_hist && frame_listed(pchist_frames, pchist_count, current_frame)) {
+			char path[1024];
+			snprintf(path, sizeof path, "%s/pchist_%06d.txt", output_directory, current_frame);
+			FILE *file = fopen(path, "w");
+			for (int cpu = 0; cpu < 2; cpu++) {
+				const uint32_t *counts = pc_hist(cpu, 1);
+				for (uint32_t i = 0; i < 0x800000; i++)
+					if (counts[i])
+						fprintf(file, "%d %06x %u\n", cpu, i * 2, counts[i]);
+			}
+			fclose(file);
 		}
 		if (frame_listed(vram_dump_frames, vram_dump_count, current_frame)) {
 			if (!vdp_ram) {
