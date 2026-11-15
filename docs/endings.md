@@ -201,7 +201,7 @@ the primitives above.
 
 The endings take 490 KB of the extension, which is 2 MB (`0x400000`-`0x5fffff`).
 
-## The new endings: Donovan (done), Pyron and Huitzil (not yet)
+## The new endings: Donovan and Pyron (done), Huitzil (not yet)
 
 Vampire Savior has no ending for Donovan, Huitzil and Pyron (the home versions do). They are
 built from the Sega Saturn game's pictures and the PlayStation game's English text, by one
@@ -211,7 +211,7 @@ so that the build needs no assembler) and the data `tools/build/new_endings.py` 
 
 - the pictures are layers of the Saturn's screen (352x240 PNG with alpha) that
   `tools/saturn/ending_layers.py` writes from a dump of the Saturn emulator; they are not in
-  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure}.png` (or, all in one, `assets/vsav2e_endings_assets.zip` with those paths)
+  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure}.png`, `.../pyron/{hell,galaxy,throne}.png` (or, all in one, `assets/vsav2e_endings_assets.zip` with those paths)
   (override the folder with `VSAV2E_ENDING_ASSETS`). Without them the character keeps Vampire
   Savior 2's own ending and the build is unchanged;
 - `scroll_picture.py` converts them (the Saturn's screen is put at +16, -8 on the CPS2's);
@@ -236,10 +236,15 @@ composite of the two, because the cells of a layer cannot overlap), the flash th
 it. Missing: the sparkles on the blade, the blade's 2 pixels after the flash, Donovan's
 fade-in (his picture pops in), the order of the hand and the blade while the hand rises.
 
+Pyron's scene (`pyron/{hell,galaxy,throne}.png`): the hell background (scroll 3) turns black and
+the galaxy fades in; the throne (scroll 2) slides in from the right at a quarter pixel a frame.
+The backgrounds are Saturn VDP2 layers, taken from emulator screenshots by
+`tools/saturn/ending_background.py` (the window without the sprites); the throne is the sprite
+bank 7020 (`ending_layers.py`). The throne's flames are one frame (they animate on the Saturn).
+
 ## Not done yet
 
-- Pyron and Huitzil (their music is in the sound program above; `new_endings.py` has the
-  place for them).
+- Huitzil (its music is in the sound program above; `new_endings.py` has the place for it).
 - Donovan's music (0x6e) is requested but not yet checked by ear.
 
 ## Testing

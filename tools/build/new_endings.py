@@ -249,6 +249,54 @@ def build_donovan(scenery, assets):
     return scenery.header(frames, tables[0], DONOVAN_MUSIC)
 
 
+# --- Pyron: the throne slides in over a hell that turns into the galaxy ---
+PYRON_MUSIC = 0x6d
+PYRON_PAGES = [
+    ['"So... it is a devil world."'],
+    ['"The universe is space, having', 'different laws and chronology."'],
+    ['"A very interesting world...', 'I must apologize..."'],
+    ['"If its destruction were not to', 'be, it should have been mine."'],
+    ['"There is nothing to', 'obtain from here..."'],
+    ['"Perhaps I will head for', 'Andromeda next..."'],
+]
+PYRON_DURATIONS = [240, 280, 300, 280, 300, 460]          # Saturn's frames 1580-3440
+PYRON_FRAMES = sum(PYRON_DURATIONS)
+
+
+def build_pyron(scenery, assets):
+    path = lambda name: os.path.join(assets, name + '.png')
+    frames = PYRON_FRAMES
+    area = (13, 5)                      # the cells (32x32) of the window: 416 x 160 pixels
+    scene = lambda name: scenery.picture(3, [(path(name), 1)], first_page=16, area=area)
+    for layer in (1, 2, 3):
+        scenery.clear(0, layer)
+    # the hell (Saturn's frame 2940-3000 less 1580: it fades to black, then the galaxy fades in)
+    cells, block = scene('hell')
+    scenery.draw(0, 3, cells)
+    scenery.fade(0, 15, block, 0, 0, 15)
+    scenery.hold(16, 1359, block)
+    scenery.fade(1360, 1420, block, 0, 15, 0)
+    cells, block = scene('galaxy')
+    scenery.draw(1421, 3, cells)
+    scenery.fade(1421, 1560, block, 0, 0, 15)
+    scenery.hold(1561, frames - 1, block)
+    # the throne, over it, on scroll 2
+    cells, block = scenery.picture(2, [(path('throne'), 1)], first_page=24)
+    scenery.draw(0, 2, cells)
+    scenery.hold(0, frames - 1, block)
+    # it slides in from the right (measured: 1/4 pixel a frame, then it eases to a stop)
+    slide = [(0, 242), (860, 27), (940, 7), (980, 2), (1020, 0)]
+    ox2, oy2 = SCROLL_ORIGIN[2]
+    ox3, oy3 = SCROLL_ORIGIN[3]
+    tables = [
+        scenery.scroll_table(frames, lambda f: ox2 - round(interpolate(slide, f))),
+        scenery.scroll_table(frames, lambda f: oy2),
+        scenery.scroll_table(frames, lambda f: ox3),
+        scenery.scroll_table(frames, lambda f: oy3),
+    ]
+    return scenery.header(frames, tables[0], PYRON_MUSIC)
+
+
 # The English text of the PlayStation game (its endings have these pages; one page is a list of
 # lines) and how long each page stays (frames; the timeline lasts as long as the pages).
 DONOVAN_PAGES = [
@@ -264,8 +312,8 @@ DONOVAN_PAGES = [
 ]
 DONOVAN_DURATIONS = [240, 480, 240, 240, 240, 240, 240, 240, 360]
 
-ENDINGS = {0x13: ('donovan', build_donovan)}
-TEXTS = {0x13: (DONOVAN_PAGES, DONOVAN_DURATIONS)}
+ENDINGS = {0x11: ('pyron', build_pyron), 0x13: ('donovan', build_donovan)}
+TEXTS = {0x11: (PYRON_PAGES, PYRON_DURATIONS), 0x13: (DONOVAN_PAGES, DONOVAN_DURATIONS)}
 # Vampire Savior's text and duration tables: the master table of each language, the table
 # of the durations (a word offset by character, then lists of words ended by 0)
 TEXT_TABLES = (0x332216, 0x33c5e4)
@@ -379,8 +427,7 @@ def place(writer, layout, address, assets, scroll_bank, scroll_position, next_fr
     where = scenery.blob.here
     timeline = address + code.LABELS['timeline']
     for character, header in headers.items():
-        stub = b'\x41\xf9' + struct.pack('>I', header) + b'\x60\x00'      # lea header.l, a0 / bra.w
-        stub += struct.pack('>h', timeline - (where + len(stub)))
+        stub = b'\x41\xf9' + struct.pack('>I', header) + b'\x4e\xf9' + struct.pack('>I', timeline)   # lea header.l, a0 / jmp timeline
         writer.put(where, stub)
         entries[character] = where
         where += len(stub)
