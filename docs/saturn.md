@@ -123,6 +123,10 @@ The animation is of three kinds: sprites that move (scrolls and drifts, the posi
 little at every frame), palette fades (Dyrek, the fades to black and the white flash) and the
 change of picture. A port can keep the first as a slow scroll and the second as a fade.
 
+The pictures are small. Donovan's, for instance, are Anita asleep (five sprites, about 128 x 45
+pixels) and the blade Dyrek (two sprites of 104 x 20), on black: a few dozen 32 x 32 tiles in all.
+`vdp1render.py ... pictures` draws them without the frame of the ending.
+
 ## The endings
 
 `tools/saturn/capture_endings.py` replays the whole session (it is deterministic): the
