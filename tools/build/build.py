@@ -113,7 +113,7 @@ def build(rom_directory, psx_directory):
         with zipfile.ZipFile(os.path.join(rom_directory, game + '.zip')) as archive:
             games[game] = (archive.read(prefix + '.01') + archive.read(prefix + '.02'),
                            archive.read(prefix + '.11m') + archive.read(prefix + '.12m'))
-    sound_program, music = sound.apply(games['vsav2'][0], games['vhunt2'][0], games['vsav2'][1],
+    sound_program, music, stage_themes = sound.apply(games['vsav2'][0], games['vhunt2'][0], games['vsav2'][1],
                                                       games['vhunt2'][1], games['vsav'][0], games['vsav'][1],
                                                       endings.ENDING_MUSIC)
     with zipfile.ZipFile(os.path.join(rom_directory, 'vsav.zip')) as savior_archive:

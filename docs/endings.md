@@ -114,13 +114,48 @@ comparing the spectra of the two recordings from the request of each piece
 (`tools/dev/endings/music_compare.py`): the same music, 0.8 to 1.0 of correlation over
 3-second windows, against 0.5 or less between two different pieces.
 
+### The music of Donovan, Huitzil and Pyron
+
+Their endings exist only in the home games (PlayStation and Saturn: CD audio, far too big
+for the sound ROMs), so there is no QSound music for them anywhere. Each of the three
+plays a slow, heavier version of the music of its own stage in Vampire Hunter 2
+(`tools/build/stage_music.py`, which also describes the format of a sequence):
+
+| | Vampire Hunter 2 sound number | vsav2e sound number |
+|---|---|---|
+| Huitzil | `0x19` | `0x6c` |
+| Pyron | `0x1a` | `0x6d` |
+| Donovan | `0x1c` | `0x6e` |
+
+(Found from the number the 68000 writes to the QSound shared RAM when each stage starts:
+`WATCH=618001,618003` of `tools/dev/libretro_run.c`, with the character forced in both
+players.) The changes, all with commands the sound program already has:
+
+- tempo 0.6 of the original: the word after a track's `05` is what the driver takes off the
+  length of every note each tick, so a smaller one is slower;
+- the percussion (instruments whose sample does not loop) at 0.4 of its volume, but for
+  the low drum all three use;
+- the three highest tracks that sustain their notes are copied, an octave lower and a few
+  cents out of tune, as new tracks in unused slots, so that the voices beat like a chorus.
+
+The sequences are put after the copies of Vampire Hunter 2's: the one that fits in what is
+left of bank 12 (reads `1f nn` as Vampire Hunter 2's bank nn), the others in banks 13-15,
+where `1f nn` is rewritten to name Vampire Hunter 2's banks 8-15 itself (the remap table of
+the bank pick routine has them as they are). Pyron's theme has a last track that jumps into
+another track's code with the bank 29, which does not exist: it is dropped. Checked by
+recording them (`tools/dev/stage_music_demo.py` makes the three versions of each theme,
+original, slowed, remixed, with no voices or effects) and, in vsav2e, by the sound CPU's
+RAM: the tempo and the slots of the music are the ones of the sequences, in bank 15 for
+Donovan.
+
 ## Program extension
 
 The endings take 490 KB of the extension, which is 2 MB (`0x400000`-`0x5fffff`).
 
 ## Not done yet
 
-- Donovan, Huitzil and Pyron: the PlayStation game's endings for them.
+- Donovan, Huitzil and Pyron: the PlayStation game's endings for them (English text, the
+  Saturn game's pictures; their music is in the sound program, above, and nothing asks for it yet).
 
 ## Testing
 

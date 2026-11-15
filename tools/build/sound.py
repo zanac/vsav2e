@@ -47,8 +47,14 @@ of those copies is somewhere in vsav2e's 16 MB of samples (Vampire Savior 2's or
 Vampire Hunter 2's ROMs); the entries the copies add to the sample table point there.
 The entries of Vampire Hunter 2's samples that are also in Vampire Savior 2's ROMs
 point at Vampire Savior 2's copy: the table stays small enough for the first 32 KB.
+
+The endings of Donovan, Huitzil and Pyron have no music in any arcade game: they play the
+stage themes of Vampire Hunter 2 slowed and remixed (`stage_music.py`), copied after the
+music of Vampire Savior's endings (or in bank 12 if one fits there).
 """
 import struct
+
+from . import stage_music
 
 FIXED_AREA_END = 0x8000                 # the part the Z80 always sees
 SAMPLE_TABLE_POINTER = 0x3b02
@@ -200,9 +206,14 @@ def free_sequence_numbers(sound, count, taken):
     raise SystemExit('sound: not enough free sequence numbers')
 
 
+def remix_theme(hunter, sequence):
+    """a stage theme of Vampire Hunter 2 as the endings play it"""
+    return stage_music.drop_stray_track(stage_music.remix(hunter, sequence))
+
+
 def apply(savior, hunter, savior_samples, hunter_samples, savior1, savior1_samples, ending_music):
     """Returns (the sound program of vsav2e, 288 KB; Vampire Savior's numbers of the ending
-    music -> vsav2e's).
+    music -> vsav2e's; the numbers of the stage themes of Huitzil, Pyron and Donovan, by name).
     savior, hunter, savior1: the sound programs (`.01` + `.02`) of Vampire Savior 2,
     Vampire Hunter 2 and Vampire Savior; *_samples their sample ROM files (`.11m` + `.12m`).
     ending_music: Vampire Savior's numbers of the music its endings ask for. (The sound
@@ -321,6 +332,8 @@ def apply(savior, hunter, savior_samples, hunter_samples, savior1, savior1_sampl
     remap_address = address
     remap = bytes(SAVIOR1_BANKS_FIRST + sorted(copied_banks).index(bank) if bank in copied_banks else bank
                   for bank in range(INSTRUMENT_BANKS))
+    # (a sequence of Vampire Hunter 2 in these banks names its banks 8 to 15 itself: stage_music.py)
+    remap += bytes(range(INSTRUMENT_BANKS, ADDED_BANKS_FIRST + INSTRUMENT_BANKS))
     sound[address:address + len(remap)] = remap
     address += len(remap)
 
@@ -445,9 +458,35 @@ def apply(savior, hunter, savior_samples, hunter_samples, savior1, savior1_sampl
         placed[number] = music_address
     music_end = max(placed[number] + len(sequences[number]) for number in placed)
 
+    # --- the stage themes of Vampire Hunter 2, slow and heavier, for the endings of the three
+    # characters that have none (stage_music.py). Bank 12 reads `1f nn` as Vampire Hunter 2's
+    # bank nn (what is left of it is after the sequences copied above); a sequence that goes
+    # in the banks after it names its banks 8 to 15 itself.
+    theme_taken = set(copied) | {number + SOUND_ENTRY_OFFSET for number in new_numbers.values()}
+    theme_numbers = dict(zip(stage_music.THEMES, free_sequence_numbers(savior, len(stage_music.THEMES), theme_taken)))
+    hunter_themes = {}
+    for character, number in stage_music.THEMES.items():
+        theme = remix_theme(hunter, sequence_data(hunter, hunter_places, number + SOUND_ENTRY_OFFSET))
+        hunter_themes[character] = theme
+    bank12_free = [place, ENDING_MUSIC_START]
+    theme_places = {}
+    for character, theme in sorted(hunter_themes.items(), key=lambda item: -len(item[1])):
+        if bank12_free[0] + len(theme) <= bank12_free[1]:
+            theme_address = bank12_free[0]
+            bank12_free[0] += len(theme)
+        else:
+            theme = stage_music.with_banks_added(theme, ADDED_BANKS_FIRST)
+            theme_address = next((gap[0] for gap in free if gap[1] - gap[0] >= len(theme)), None)
+            if theme_address is None or take(theme_address, len(theme)) is None:
+                raise SystemExit('sound: no room for the stage themes')
+        sound[theme_address:theme_address + len(theme)] = theme
+        struct.pack_into('>I', sound, SEQUENCE_TABLE + 4 * (theme_numbers[character] + SOUND_ENTRY_OFFSET), theme_address)
+        theme_places[character] = (theme_address, len(theme))
+
     print('sound: %d samples (%d Vampire Savior 2), %d sets of envelopes, tables to 0x%x, %d sequences copied '
-          '(0x%x-0x%x), %d of the endings (0x%x-0x%x, %d bytes free)'
+          '(0x%x-0x%x), %d of the endings (0x%x-0x%x), 3 stage themes %s (%d bytes free)'
           % (len(table.entries), savior_sample_count, used_envelope_sets, address, len(copied),
              COPIED_SEQUENCES_START, place, len(ending_music), ENDING_MUSIC_START, music_end,
-             sum(gap[1] - gap[0] for gap in free)))
-    return bytes(sound), new_numbers
+             ', '.join('%s 0x%x-0x%x' % (name, start, start + length) for name, (start, length) in theme_places.items()),
+             sum(gap[1] - gap[0] for gap in free) + bank12_free[1] - bank12_free[0]))
+    return bytes(sound), new_numbers, theme_numbers

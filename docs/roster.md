@@ -162,4 +162,5 @@ another character the recordings are the same to the sample.
 ## Not done yet
 
 - Vampire Hunter 2's music is not copied (the three characters fight on Vampire Savior
-  2's stages, with their music).
+  2's stages, with their music), but for the three stage themes the endings of Donovan,
+  Huitzil and Pyron will play, slowed and remixed (`tools/build/stage_music.py`).
