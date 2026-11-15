@@ -96,6 +96,33 @@ frame table refers to it by `offset / 4` from the start of the pool (the pool of
 `END*.BG` (a header `TK`) was not seen being read in the endings
 and keeps its own format.
 
+## Which pictures are in the endings (from the VDP1 command tables)
+
+Sprites of banks `0x71e0` (text window and its frame), `0x71f0` (purple background tiles), `0x7000`
+(the text: one sprite a character) and `0x7010` (the `1st A__` initials) are the frame of every
+ending; the picture itself is in the other banks, or in VDP2. `VDUMPS` every 20 frames of the three
+endings (frame numbers of the second pass, as in the captures):
+
+| Ending | Frames | What is drawn |
+|---|---|---|
+| Donovan | 340-800 | Anita asleep: 5 sprites (banks `7040`, `7030`), they drift slowly across the window |
+| | 820-920 | the blade Dyrek fades in over her: 2 more sprites (bank `7020`), a palette fade |
+| | 940-1300 | the blade complete and then a white flash (palette to white), 7 sprites |
+| | 1320- | the staff roll (15 sprites a frame, different at every frame) |
+| Pyron | 1560-2180 | his hand in flames, 17 sprites, scrolling into the window from the left, then still |
+| | 2200-3620 | the galaxy, 12 sprites moving |
+| | 3680- | the staff roll |
+| Huitzil | 1660-2240 | the broken robot Phobos: a picture of VDP2 (the VRAM does not change from 1660 on; only a small sprite is VDP1) |
+| | later | the robots and the soldier are sprites (the soldier is 26 sprites), the beam on the city is VDP2 again; a fade to black between the scenes |
+
+So there are two kinds of picture. Donovan's and Pyron's are VDP1 sprites: `vdp1lz.py` and
+`vdp1render.py` give them separate from the frame, with their palettes. Some of Huitzil's (Phobos,
+the city) are VDP2 backgrounds, loaded from `END10.BG` (the `TK` format, still undecoded): for
+those the capture of the picture window (224 x 128, native pixels) is the way until it is.
+The animation is of three kinds: sprites that move (scrolls and drifts, the positions change a
+little at every frame), palette fades (Dyrek, the fades to black and the white flash) and the
+change of picture. A port can keep the first as a slow scroll and the second as a fade.
+
 ## The endings
 
 `tools/saturn/capture_endings.py` replays the whole session (it is deterministic): the
