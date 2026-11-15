@@ -420,21 +420,54 @@ DURATION_POINTERS = 0xcdd0
 CHARACTER_COUNT = quotes.CHARACTER_ID_COUNT
 
 
+# the Japanese text engine spaces the letters 16 pixels apart, so the English text of the new endings
+# (they have no Japanese one) is set again in the Japanese table: shorter lines, more pages
+JAPANESE_LINE = 15
+
+
+def narrow_pages(pages, durations, width=JAPANESE_LINE):
+    """(pages, durations) with the words wrapped to `width` letters, two lines a page; each
+    page's duration is shared among its new pages by their length"""
+    new_pages, new_durations = [], []
+    for page, duration in zip(pages, durations):
+        lines, line = [], ''
+        for word in ' '.join(page).split():
+            if line and len(line) + 1 + len(word) > width:
+                lines.append(line)
+                line = word
+            else:
+                line = (line + ' ' + word) if line else word
+        lines.append(line)
+        groups = [lines[i:i + 2] for i in range(0, len(lines), 2)]
+        total = sum(len(' '.join(group)) for group in groups)
+        left = duration
+        for number, group in enumerate(groups):
+            share = left if number == len(groups) - 1 else round(duration * len(' '.join(group)) / total)
+            new_pages.append(group)
+            new_durations.append(share)
+            left -= share
+    return new_pages, new_durations
+
+
 def place_texts(writer, layout, address, savior, characters):
     """new text and durations for `characters` ({id: (pages, durations)}) in both tables
-    (Japanese ending text has none for them: they get the English one); returns the end"""
+    (Japanese ending text has none for them: they get the English one, in shorter lines);
+    returns the end"""
     code_of = story_text.latin_codes(savior)
-    encoded = {}
+    encoded, encoded_japanese, durations_japanese = {}, {}, {}
     for character, (pages, durations) in characters.items():
         if len(pages) != len(durations):
             raise SystemExit('new endings: %d pages and %d durations' % (len(pages), len(durations)))
         encoded[character] = story_text.encode_text([pages], code_of, 32)[0]
+        narrow_text, narrow_durations = narrow_pages(pages, durations)
+        encoded_japanese[character] = story_text.encode_text([narrow_text], code_of, 32)[0]
+        durations_japanese[character] = narrow_durations
     master_pointers, duration_pointers = [], []
-    for table in TEXT_TABLES:
+    for language, table in enumerate(TEXT_TABLES):
         blocks, cache = [], {}
         for character, block in enumerate(quotes.read_master_table(savior, table)):
             if character in encoded:
-                blocks.append(encoded[character])
+                blocks.append((encoded_japanese if language == 0 else encoded)[character])
             else:
                 if block not in cache:
                     try:
@@ -446,7 +479,7 @@ def place_texts(writer, layout, address, savior, characters):
         writer.put(address, data)
         master_pointers.append(address)
         address += len(data) + (len(data) & 1)
-    for table in DURATION_TABLES:
+    for language, table in enumerate(DURATION_TABLES):
         offsets = struct.unpack_from('>%dH' % CHARACTER_COUNT, savior, table)
         lists = {}
         for character, offset in enumerate(offsets):
@@ -459,7 +492,7 @@ def place_texts(writer, layout, address, savior, characters):
                 position += 2
             lists[character] = tuple(words)
         for character, (pages, durations) in characters.items():
-            lists[character] = tuple(durations)
+            lists[character] = tuple(durations_japanese[character] if language == 0 else durations)
         body, where = b'', {}
         for character in range(CHARACTER_COUNT):
             if lists[character] not in where:
