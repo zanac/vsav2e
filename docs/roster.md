@@ -124,11 +124,15 @@ Bishamon, `09` Aulbath (Rikuo), `0a` Sasquatch, `0b` the random choice, `0c` Q-B
 Lei-Lei (Hsien-Ko), `0e` Lilith, `0f` Jedah, `10` Phobos (Huitzil), `11` Pyron, `12` a dark
 Gallon, `13` Donovan.
 
-Sprite palettes on this screen: `01` texts, `03` the speed choice, `04` the name, `05`-`14`
-the faces, `15` and `17` player 1's character (main and second palette), `18` and `1a`
-player 2's, `1b` and `1c` the two portraits, `1e` and `1f` the cursors. `16` and `19` were
-free; `1d` was the pink filling of three cells; `00` and `02` are loaded but not drawn
-with (their colours in the block are also read by other code).
+Sprite palettes on this screen: `01` texts, `03` the speed choice that is picked, `1d` the speed
+choices that are not, `04` the name, `05`-`14` the faces, `15` and `17` player 1's character
+(main and second palette), `18` and `1a` player 2's, `1b` and `1c` the two portraits, `1e` and
+`1f` the cursors. `16` and `19` were free (Jon Talbain, Rikuo); `00` and `02` are loaded but
+not drawn with, and their colours in the block are also read by other code, so the new cells
+(`00`) and Sasquatch (`02`) get theirs written after the block is loaded. The speed menu
+(Normal, Turbo, and with the operator's options Auto, Auto & Turbo) and its ten-second
+countdown are the game's own and work as in Vampire Savior 2; they are set in the service
+menu, not by DIP switches (the set has none).
 
 The three new cells come from the PlayStation screen (`assets/psx/select/*.png`, one
 capture per character): the tombstone is the same drawing in other colours, 8 pixels to

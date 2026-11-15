@@ -28,11 +28,13 @@ How the screen is made, and what changes:
   them. The same pixels are trimmed here: a pixel of a moved face is kept when the
   PlayStation screen shows it. The trimmed faces are new tiles.
 - Palettes: the screen loads 32 sprite palettes from one block. Three are free for the
-  three faces: 0x16 and 0x19 are never used, 0x1d was the pink filling of three cells,
-  which the new layout does not have. (0x17 and 0x1a look unused but take the second
-  palette of the characters of players 1 and 2.) The new cells take palette 2, which no
-  sprite of this screen uses; its colours in the block are read by other code, so they
-  are left alone and the new ones are written over them once the block is loaded.
+  three faces: 0x16 and 0x19 are never used, 0x1d was the pink filling of three cells
+  (and the speed menu's badges). (0x17 and 0x1a look unused but take the second
+  palette of the characters of players 1 and 2.) 0x1d is not free after all: the speed
+  menu's badges that are not chosen use it, so Sasquatch takes palette 2 and the new
+  cells palette 0, which no sprite of this screen uses; their colours in the block are read
+  by other code, so they are left alone and the new ones are written over them once the
+  block is loaded.
 - The cursors: for each character id, a position (table at 0x6bc78) and three frames
   (player 1, player 2 and a third one), in three tables of 32 frame pointers. The new
   cells have the shape of the cells 29 pixels above them, so they use their frames.
@@ -97,8 +99,11 @@ PALETTE_CHARACTER = {0x05: DONOVAN, 0x06: DEMITRI, 0x07: QBEE, 0x08: VICTOR, 0x0
                      0x10: RANDOM, 0x11: PYRON, 0x12: HSIENKO, 0x13: HUITZIL, 0x14: JEDAH}
 CELL_FILLING_PALETTE = 0x1d
 # the three faces taken from Vampire Hunter 2's frame: palette there -> (id, free palette)
-HUNTER_FACES = {0x07: (TALBAIN, 0x16), 0x0e: (RIKUO, 0x19), 0x0f: (SASQUATCH, 0x1d)}
-NEW_CELLS_PALETTE = 0x02
+HUNTER_FACES = {0x07: (TALBAIN, 0x16), 0x0e: (RIKUO, 0x19), 0x0f: (SASQUATCH, 0x02)}
+NEW_CELLS_PALETTE = 0x00
+# Palettes 0 and 2 are not drawn with by the grid, but their colours in the block are read by
+# other code: the colours of what takes them are written over them after the block is loaded.
+LOADED_AFTER_BLOCK = (0x00, 0x02)
 
 # the faces that change cell, and by how many pixels (measured on the PlayStation screen)
 MOVED_FACES = {QBEE: (-31, 17), LILITH: (3, -30), BULLETA: (-83, -14), PYRON: (0, 61),
@@ -314,37 +319,51 @@ def build_icon_frame(vsav2e, hunter, extension, sprite_roms, screen):
     struct.pack_into('>I', vsav2e, ICON_FRAME_POINTER, frame)
 
     # palettes: the three faces of Vampire Hunter 2 and the new cells
+    after_block = {}
     for hunter_palette, (_, palette) in HUNTER_FACES.items():
         source = HUNTER_SELECT_PALETTES + PALETTE_BYTES * hunter_palette
         colours = bytearray(hunter[source:source + PALETTE_BYTES])
         struct.pack_into('>H', colours, PALETTE_BYTES - 2, palette)
-        vsav2e[SELECT_PALETTES + PALETTE_BYTES * palette:SELECT_PALETTES + PALETTE_BYTES * (palette + 1)] = colours
-    return len(sprites), allocator.shelf_tile + 0x10 * allocator.shelf_rows, cells_palette
+        if palette in LOADED_AFTER_BLOCK:
+            after_block[palette] = struct.unpack('>16H', colours)
+        else:
+            vsav2e[SELECT_PALETTES + PALETTE_BYTES * palette:SELECT_PALETTES + PALETTE_BYTES * (palette + 1)] = colours
+    after_block[NEW_CELLS_PALETTE] = cells_palette
+    return len(sprites), allocator.shelf_tile + 0x10 * allocator.shelf_rows, after_block
 
 
-def load_new_cells_palette(vsav2e, palette, free_space_start, free_space_end):
-    """The palette of the new cells is not in the block the screen loads: a routine
-    writes it over palette 2 after the block. Returns the first free address."""
-    routine = bytes.fromhex(
+def load_palettes_after_block(vsav2e, palettes, free_space_start, free_space_end):
+    """Some palettes of the select screen are not in the block the screen loads: a routine
+    writes them (palette number -> 16 words) after the block. Returns the first free address."""
+    head = bytes.fromhex(
         '43f9' + '%08x' % SPRITE_PALETTES +         # lea     the sprite palettes, a1
         'b1fc' + '%08x' % SELECT_PALETTES +         # cmpa.l  #the block of the select screen, a0
         '6706'                                      # beq.s   select_screen
         '4ef9' + '%08x' % PALETTE_LOAD_ROUTINE +    # jmp     load the 32 palettes
         # select_screen:
-        '4eb9' + '%08x' % PALETTE_LOAD_ROUTINE +    # jsr     load the 32 palettes
-        '43f9' + '%08x' % (SPRITE_PALETTES + PALETTE_BYTES * NEW_CELLS_PALETTE) +   # lea the cells' palette, a1
-        '41fa0012'      # lea     colours(pc), a0
-        '7e0f'          # moveq   #15, d7
-        '3018'          # move.w  (a0)+, d0
-        '0040f000'      # ori.w   #$f000, d0         full brightness, like the routine does
-        '32c0'          # move.w  d0, (a1)+
-        '51cffff6'      # dbra    d7, the move.w
-        '4e75')         # rts
+        '4eb9' + '%08x' % PALETTE_LOAD_ROUTINE)     # jsr     load the 32 palettes
+    copy_size = 24                                   # bytes of the code that copies one palette
     address = free_space_start + (free_space_start & 1)
-    end = address + len(routine) + PALETTE_BYTES
+    code_end = address + len(head) + copy_size * len(palettes) + 2
+    code = bytearray(head)
+    data = b''
+    for index, (palette_number, colours) in enumerate(sorted(palettes.items())):
+        here = address + len(code)
+        source = code_end + len(data)
+        code += bytes.fromhex(
+            '43f9' + '%08x' % (SPRITE_PALETTES + PALETTE_BYTES * palette_number) +  # lea  the palette, a1
+            '41fa' + '%04x' % (source - (here + 6 + 2)) +   # lea     colours(pc), a0
+            '7e0f'          # moveq   #15, d7
+            '3018'          # move.w  (a0)+, d0
+            '0040f000'      # ori.w   #$f000, d0         full brightness, like the routine does
+            '32c0'          # move.w  d0, (a1)+
+            '51cffff6')     # dbra    d7, the move.w
+        data += struct.pack('>16H', *colours)
+    code += b'\x4e\x75'                              # rts
+    end = address + len(code) + len(data)
     if end > free_space_end:
         raise SystemExit('select screen: no room for the palette routine')
-    vsav2e[address:end] = routine + struct.pack('>16H', *palette)
+    vsav2e[address:end] = bytes(code) + data
     for load_address in PALETTE_LOAD_ADDRESSES:
         if vsav2e[load_address:load_address + 6] != PALETTE_LOAD_ORIGINAL:
             raise SystemExit('select screen: unexpected code at the palette load 0x%x' % load_address)
@@ -436,9 +455,9 @@ def apply(vsav2e, hunter, extension, sprite_roms, captures_directory, free_space
     to the program extension and the new tiles to sprite_roms, the upper sprite bank.
     Returns the first free address of the program and the first tile after the new ones."""
     screen = PlayStationScreen(captures_directory)
-    sprites, tiles_end, cells_palette = build_icon_frame(vsav2e, hunter, extension, sprite_roms, screen)
+    sprites, tiles_end, after_block = build_icon_frame(vsav2e, hunter, extension, sprite_roms, screen)
     print('select screen: %d sprites, new tiles 0x%x-0x%x' % (sprites, NEW_TILES_START, tiles_end))
     move_cursors(vsav2e)
     write_navigation(vsav2e)
     free_space = extend_random_choice(vsav2e, free_space_start, free_space_end)
-    return load_new_cells_palette(vsav2e, cells_palette, free_space, free_space_end), tiles_end
+    return load_palettes_after_block(vsav2e, after_block, free_space, free_space_end), tiles_end
