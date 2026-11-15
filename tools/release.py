@@ -29,9 +29,9 @@ What you need
   * the MAME sets vsav2.zip (with vsav2d inside), vsav.zip (with vsavd inside) and
     vhunt2.zip in one folder: your own dumps, they are not in this kit
   * assets/ as in the repository (they come from the home games, so they are not in this
-    kit either): assets/psx/select/*.png, assets/vsav2e_title_assets.zip and, for the
-    new endings of Donovan, Huitzil and Pyron, assets/vsav2e_endings_assets.zip (without
-    it those three keep Vampire Savior 2's endings)
+    kit either): assets/psx/select/*.png, assets/psx/title/*.png and, for the new
+    endings of Donovan, Huitzil and Pyron, assets/saturn/endings/ (without it those three
+    keep Vampire Savior 2's endings)
 
 Build (the same on Linux, macOS and Windows)
   python3 make_vsav2e.py ROM_FOLDER OUTPUT_FOLDER
