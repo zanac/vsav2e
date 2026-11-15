@@ -221,6 +221,8 @@ FIGURE_FRAME = 1580
 def sparkles(scenery, path, frames):
     """patches over the blade: the few cells they cover, redrawn with each state (the cells of
     the picture below, with the glint on them, so that the pictures need not be repeated)"""
+    if not os.path.exists(path('sparkle00')):          # an older set of pictures: no glints
+        return
     runs = [(SPARKLE_START, SPARKLE_START + 3, 0)]
     start = SPARKLE_START + 3
     while start < frames:

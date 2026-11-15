@@ -60,6 +60,14 @@ Language: English by default, Japanese from the service menu (`docs/text.md`).
 
 ![](screenshots/versus_stage_select.png)
 
+## Release
+
+`tools/release.py DIR VERSION --checksums out/vsav2e.checksums.txt` makes the build kit: the
+portable build script and its sources without the material of the home games (`assets/`).
+The build needs Python 3.8+ and Pillow only (no assembler: the assembled code is committed
+as hex), is deterministic, and writes `vsav2e.checksums.txt` (CRC32 and SHA-1 of each chip)
+to compare with the release's. Details in the kit's `BUILD.txt`.
+
 ## Running the tracer
 
 MAME 0.264 or later, the sets in `roms/` (`vsav2.zip`, `vhunt2.zip`; the QSound DSP ROM

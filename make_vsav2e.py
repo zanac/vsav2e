@@ -19,6 +19,7 @@ new cells from captures of it: assets/psx/select/*.png, next to this script. The
 screen is the PlayStation one, from the captures in assets/vsav2e_title_assets.zip (or
 in assets/psx/title/).
 """
+import hashlib
 import os
 import sys
 import zipfile
@@ -58,14 +59,19 @@ def main():
         for name in HUNTER_SAMPLE_ROMS:
             files.append((name, hunter_archive.read(name)))
 
+    os.makedirs(output_directory, exist_ok=True)
     output_path = os.path.join(output_directory, 'vsav2e.zip')
     # the zip is written in full before anything is printed, so that a closed output
     # pipe (`... | head`) cannot leave it half written
     with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as archive:
         for name, data in files:
             archive.writestr(name, data)
-    for name, data in files:
-        print('  %-8s %7d  %08x' % (name, len(data), zlib.crc32(data) & 0xffffffff))
+    # the checksums of the chips, as MAME's data files give them (to compare with a release's)
+    lines = ['%-8s %8d  crc32 %08x  sha1 %s' % (name, len(data), zlib.crc32(data) & 0xffffffff,
+                                               hashlib.sha1(data).hexdigest()) for name, data in files]
+    with open(os.path.join(output_directory, 'vsav2e.checksums.txt'), 'w') as checksums:
+        checksums.write('\n'.join(lines) + '\n')
+    print('\n'.join('  ' + line for line in lines))
     print('written', output_path)
 
 

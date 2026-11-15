@@ -211,7 +211,7 @@ so that the build needs no assembler) and the data `tools/build/new_endings.py` 
 
 - the pictures are layers of the Saturn's screen (352x240 PNG with alpha) that
   `tools/saturn/ending_layers.py` writes from a dump of the Saturn emulator; they are not in
-  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure}.png`, `.../pyron/{hell,galaxy,throne}.png`, `.../huitzil/{ship,machine,face,city}.png` (or, all in one, `assets/vsav2e_endings_assets.zip` with those paths)
+  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure,sparkle00-12}.png` (the sparkles: bank 7080 of frames 1400, 1403, 1405, 1411, 1417, 1419, 1423, 1427, 1429, 1443, 1451, 1467, 1475 of `donovan3`, by `ending_layers.py`; without them the blade has no glints), `.../pyron/{hell,galaxy,throne}.png`, `.../huitzil/{ship,machine,face,city}.png` (or, all in one, `assets/vsav2e_endings_assets.zip` with those paths)
   (override the folder with `VSAV2E_ENDING_ASSETS`). Without them the character keeps Vampire
   Savior 2's own ending and the build is unchanged;
 - `scroll_picture.py` converts them (the Saturn's screen is put at +16, -8 on the CPS2's);
@@ -233,28 +233,42 @@ so that the build needs no assembler) and the data `tools/build/new_endings.py` 
 Donovan's scene: Anita asleep (fades in), the blade (eight steps of brightness, each a
 composite of the two, because the cells of a layer cannot overlap), the flash that wakes her
 (to white and back), then the hand rising over the blade and Donovan's arm and face behind
-it. Missing: the sparkles on the blade, the blade's 2 pixels after the flash, Donovan's
+it. The glints on the blade are patches of four cells redrawn with each of the 13 states of
+Saturn's bank 7080 (a 74-frame loop). Missing: the blade's 2 pixels after the flash, Donovan's
 fade-in (his picture pops in), the order of the hand and the blade while the hand rises.
 
 Pyron's scene (`pyron/{hell,galaxy,throne}.png`): the hell background (scroll 3) turns black and
 the galaxy fades in; the throne (scroll 2) slides in from the right at a quarter pixel a frame.
 The backgrounds are Saturn VDP2 layers, taken from emulator screenshots by
 `tools/saturn/ending_background.py` (the window without the sprites); the throne is the sprite
-bank 7020 (`ending_layers.py`). The throne's flames are one frame (they animate on the Saturn).
+bank 7020 (`ending_layers.py`). The throne is one frame: it does not animate on the Saturn either (the sprites and the
+background are identical from frame 2580 to 2900 in the captures).
 
 Huitzil's scene (`huitzil/{ship,machine,face,city}.png`): four full pictures of the window, taken from
 screenshots with `ending_background.py` (no sprites masked) that fade in and out in turn on scroll 3
 (the Saturn animates parts of them; here they are still). The font has no colon and no digits:
 the PlayStation's colons became full stops and "3600 seconds" "one hour".
 
+## Japanese text of the new endings
+
+The Japanese text engine spaces letters 16 pixels apart, so the English text of Donovan,
+Huitzil and Pyron (they have no Japanese one) is set again for the Japanese table: lines of
+15 letters, two lines a page, each page's duration shared among its new pages by length
+(`narrow_pages`). The ported endings use Vampire Savior's Japanese text.
+
+## Music
+
+Checked on the signal: the sound commands of each ending are written, and the recorded
+audio (`AUDIO` of the runner) has music all through (RMS 700-1500 of 32768), a different one
+for each of the three. Not listened to by ear.
+
 ## Not done yet
 
-- The music of the three endings has not been listened to (the requests are the same as the ported
-  endings').
-- Donovan's music (0x6e) is requested but not yet checked by ear.
+- The music of the three endings has not been listened to.
 
 ## Testing
 
 `tools/dev/libretro_run.c` with the auto-win (`AUTOWIN`) reaches an ending in about 9000
 frames. The 14 endings were compared with Vampire Savior's in MAME in English; B.B. Hood's
-also in Japanese (the language byte `ff8093` set to 0).
+also in Japanese (the language byte `ff8093` set to 0); the new three, and six of the
+ported, in Japanese too.
