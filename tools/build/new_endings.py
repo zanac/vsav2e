@@ -8,6 +8,7 @@ ending's timeline is built from the pictures the user supplies (assets/endings/<
 RGBA layers of Saturn's screen 352x240, see tools/saturn/ending_layers.py). Without the
 pictures an ending is not built and the character keeps Vampire Savior 2's own.
 """
+import glob
 import os
 import struct
 import sys
@@ -87,12 +88,13 @@ class Scenery:
         screen on the transparent colour"""
         from PIL import Image
         screen = Image.new('RGB', SCREEN, TRANSPARENT)
-        for path, brightness in layers:
+        for path, brightness, *shift in layers:
             layer = Image.open(path).convert('RGBA')
             # a pixel is either drawn or not (Saturn's layers are not blended)
             solid = layer.split()[3].point(lambda alpha: 255 if alpha >= 128 else 0)
             rgb = layer.convert('RGB').point(lambda value: round(value * brightness))
-            screen.paste(rgb, CPS_OFFSET, solid)
+            where = (CPS_OFFSET[0] + shift[0][0], CPS_OFFSET[1] + shift[0][1]) if shift else CPS_OFFSET
+            screen.paste(rgb, where, solid)
         return screen
 
     def picture(self, layer, layers, first_page=None, area=None, crop=None):
@@ -214,6 +216,17 @@ SPARKLE_PERIOD = 74
 SPARKLE_CELLS = (4, 2, 4, 1)         # column, row, columns, rows of the cells they cover (on scroll 3)
 SPARKLE_PAGE = 28                    # the palette pages of the patches (the pictures use 16 and up)
 FIGURE_FRAME = 1580
+# the figure behind Anita fades in (Saturn's frames 1920-1960 less 340), in steps of brightness
+FIGURE_STEPS = 8
+FIGURE_STEP_FRAMES = [FIGURE_FRAME + 5 * step for step in range(FIGURE_STEPS)]
+BLADE_AFTER_FLASH = (0, 2)            # the blade is 2 pixels lower once she is awake
+
+
+def figure_level(frame):
+    """0 before the figure, then 1 to FIGURE_STEPS"""
+    if frame < FIGURE_FRAME:
+        return 0
+    return min(FIGURE_STEPS, (frame - FIGURE_FRAME) // 5 + 1)
 
 
 def sparkles(scenery, path, frames):
@@ -234,17 +247,17 @@ def sparkles(scenery, path, frames):
         if first >= frames:
             break
         last = min(last, frames - 1)
-        # a run that crosses the frame of the figure is cut there: its picture changes
-        for part_first, part_last in ((first, min(last, FIGURE_FRAME - 1)), (max(first, FIGURE_FRAME), last)):
-            if part_first > part_last:
-                continue
-            figure = part_first >= FIGURE_FRAME
-            if (state, figure) not in patches:
-                layers = [(path('figure'), 1)] if figure else []
-                layers += [(path('awake'), 1), (path('blade'), 1), (path('sparkle%02d' % state), 1)]
-                patches[state, figure] = scenery.picture(3, layers, first_page=SPARKLE_PAGE,
-                                                         crop=SPARKLE_CELLS)
-            cells, block = patches[state, figure]
+        # a run is cut where the picture below changes (the figure fading in)
+        cuts = [first] + [frame for frame in FIGURE_STEP_FRAMES if first < frame <= last] + [last + 1]
+        for part_first, part_last in zip(cuts, [cut - 1 for cut in cuts[1:]]):
+            level = figure_level(part_first)
+            if (state, level) not in patches:
+                layers = [(path('figure'), level / FIGURE_STEPS)] if level else []
+                layers += [(path('awake'), 1), (path('blade'), 1, BLADE_AFTER_FLASH),
+                           (path('sparkle%02d' % state), 1)]
+                patches[state, level] = scenery.picture(3, layers, first_page=SPARKLE_PAGE,
+                                                        crop=SPARKLE_CELLS)
+            cells, block = patches[state, level]
             scenery.draw(part_first, 3, cells)
             scenery.hold(part_first, part_last, block)
 
@@ -269,14 +282,16 @@ def build_donovan(scenery, assets):
         scenery.hold(starts[step - 1], starts[step] - 1, block)
     # the flash (Saturn's frames 1290-1328 less 340): to white, the pose swaps, back
     scenery.fade(950, 960, block, 1, 0, 15)
-    cells, block = scene((path('awake'), 1), (path('blade'), 1))
+    cells, block = scene((path('awake'), 1), (path('blade'), 1, BLADE_AFTER_FLASH))
     scenery.draw(961, 3, cells)
     scenery.fade(961, 988, block, 1, 15, 0)
     scenery.hold(989, 1579, block)
     # Donovan's arm and face (Saturn's second background) appear behind the hand
-    cells, block = scene((path('figure'), 1), (path('awake'), 1), (path('blade'), 1))
-    scenery.draw(1580, 3, cells)
-    scenery.hold(1580, frames - 1, block)
+    for step, first in enumerate(FIGURE_STEP_FRAMES):
+        cells, block = scene((path('figure'), (step + 1) / FIGURE_STEPS), (path('awake'), 1),
+                             (path('blade'), 1, BLADE_AFTER_FLASH))
+        scenery.draw(first, 3, cells)
+        scenery.hold(first, FIGURE_STEP_FRAMES[step + 1] - 1 if step + 1 < FIGURE_STEPS else frames - 1, block)
     sparkles(scenery, path, frames)
     # the hand comes in over everything, on scroll 2
     cells, block = scenery.picture(2, [(path('hand'), 1)], first_page=24)   # the game writes the low pages
@@ -369,7 +384,8 @@ HUITZIL_PAGES = [
 ]
 # Saturn's frames 1660-4720 (the text pages), then the picture stays until 4880
 HUITZIL_DURATIONS = [240, 220, 260, 240, 360, 240, 240, 260, 240, 260, 240, 260]
-HUITZIL_FRAMES = 4880 - 1660
+HUITZIL_TEXT_START = 1660
+HUITZIL_FRAMES = 4880 - HUITZIL_TEXT_START
 
 
 def build_huitzil(scenery, assets):
@@ -383,9 +399,23 @@ def build_huitzil(scenery, assets):
     for layer in (1, 2, 3):
         scenery.clear(0, layer)
     for name, start, fade_in, end, fade_out in shown:
-        cells, block = scenery.picture(3, [(path(name), 1)], first_page=12, area=area)
-        scenery.draw(start, 3, cells)
-        scenery.fade(start, start + fade_in, block, 0, 0, 15)
+        steps = sorted(glob.glob(os.path.join(os.path.dirname(path(name)), name + '_[0-9]*.png')))
+        if steps:
+            # the machine does not simply fade in: drones fly in, then it lights up. Saturn's
+            # window every 20 frames (named by the Saturn's frame), each shown for 20 frames
+            for number, step in enumerate(steps):
+                first = start if number == 0 else int(step[-8:-4]) - HUITZIL_TEXT_START
+                last = int(steps[number + 1][-8:-4]) - HUITZIL_TEXT_START - 1 if number + 1 < len(steps) \
+                    else start + fade_in
+                cells, block = scenery.picture(3, [(step, 1)], first_page=12, area=area)
+                scenery.draw(first, 3, cells)
+                scenery.hold(first, last, block)
+            cells, block = scenery.picture(3, [(path(name), 1)], first_page=12, area=area)
+            scenery.draw(start + fade_in + 1, 3, cells)
+        else:
+            cells, block = scenery.picture(3, [(path(name), 1)], first_page=12, area=area)
+            scenery.draw(start, 3, cells)
+            scenery.fade(start, start + fade_in, block, 0, 0, 15)
         scenery.hold(start + fade_in + 1, end - 1, block)
         scenery.fade(end, end + fade_out - 1, block, 0, 15, 0)
     ox2, oy2 = SCROLL_ORIGIN[2]

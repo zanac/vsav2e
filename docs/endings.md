@@ -211,7 +211,7 @@ so that the build needs no assembler) and the data `tools/build/new_endings.py` 
 
 - the pictures are layers of the Saturn's screen (352x240 PNG with alpha) that
   `tools/saturn/ending_layers.py` writes from a dump of the Saturn emulator; they are not in
-  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure,sparkle00-12}.png` (the sparkles: bank 7080 of frames 1400, 1403, 1405, 1411, 1417, 1419, 1423, 1427, 1429, 1443, 1451, 1467, 1475 of `donovan3`, by `ending_layers.py`; without them the blade has no glints), `.../pyron/{hell,galaxy,throne}.png`, `.../huitzil/{ship,machine,face,city}.png`
+  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure,sparkle00-12}.png` (the sparkles: bank 7080 of frames 1400, 1403, 1405, 1411, 1417, 1419, 1423, 1427, 1429, 1443, 1451, 1467, 1475 of `donovan3`, by `ending_layers.py`; without them the blade has no glints), `.../pyron/{hell,galaxy,throne}.png`, `.../huitzil/{ship,machine,face,city}.png` (and `machine_2540.png` ... `machine_2740.png`, one every 20 frames: the machine scene's drones, by `ending_background.py` with no banks and the window `80,24,272,152`; without them the machine just fades in)
   (override the folder with `VSAV2E_ENDING_ASSETS`). Without them the character keeps Vampire
   Savior 2's own ending and the build is unchanged;
 - `scroll_picture.py` converts them (the Saturn's screen is put at +16, -8 on the CPS2's);
@@ -234,8 +234,9 @@ Donovan's scene: Anita asleep (fades in), the blade (eight steps of brightness, 
 composite of the two, because the cells of a layer cannot overlap), the flash that wakes her
 (to white and back), then the hand rising over the blade and Donovan's arm and face behind
 it. The glints on the blade are patches of four cells redrawn with each of the 13 states of
-Saturn's bank 7080 (a 74-frame loop). Missing: the blade's 2 pixels after the flash, Donovan's
-fade-in (his picture pops in), the order of the hand and the blade while the hand rises.
+Saturn's bank 7080 (a 74-frame loop). The blade is 2 pixels lower after the flash and the figure fades in (eight steps of its
+brightness). Missing: the order of the hand and the blade while the hand rises (the hand is
+always over the blade).
 
 Pyron's scene (`pyron/{hell,galaxy,throne}.png`): the hell background (scroll 3) turns black and
 the galaxy fades in; the throne (scroll 2) slides in from the right at a quarter pixel a frame.
@@ -246,7 +247,8 @@ background are identical from frame 2580 to 2900 in the captures).
 
 Huitzil's scene (`huitzil/{ship,machine,face,city}.png`): four full pictures of the window, taken from
 screenshots with `ending_background.py` (no sprites masked) that fade in and out in turn on scroll 3
-(the Saturn animates parts of them; here they are still). The font has no colon and no digits:
+(the ship, face and city are still on the Saturn too, as measured in its captures; the machine
+scene is eleven steps, drones flying in and then the machine lighting up). The font has no colon and no digits:
 the PlayStation's colons became full stops and "3600 seconds" "one hour".
 
 ## Japanese text of the new endings
