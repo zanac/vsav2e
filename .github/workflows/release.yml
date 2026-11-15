@@ -1,0 +1,51 @@
+name: Release
+
+# Manual only (Actions > Release > Run workflow, or `gh workflow run release.yml -f version=v1.0`).
+# Builds vsav2e-builder.exe, a window that makes vsav2e.zip from the user's own MAME sets with the
+# pictures it needs inside (assets/), and publishes a release with the program, its SHA-256 and
+# the sources of this commit.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release tag, e.g. v1.0 (it must not exist yet)'
+        required: true
+      draft:
+        description: 'Leave the release as a draft'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install pillow pyinstaller
+      - name: Check the sources compile
+        run: python -m compileall -q tools text make_vsav2e.py
+      - name: Build the program
+        run: pyinstaller --noconfirm tools/builder/vsav2e_builder.spec
+      - name: Sources and checksums
+        shell: bash
+        run: |
+          git archive --format=zip --prefix=vsav2e/ -o "dist/vsav2e-source-${{ inputs.version }}.zip" HEAD
+          cd dist
+          sha256sum vsav2e-builder.exe "vsav2e-source-${{ inputs.version }}.zip" | tee SHA256SUMS.txt
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=""
+          if [ "${{ inputs.draft }}" = "true" ]; then flags="--draft"; fi
+          gh release create "${{ inputs.version }}" $flags --target "${{ github.sha }}" \
+            --title "vsav2e ${{ inputs.version }}" \
+            --notes "vsav2e-builder.exe: choose the folder with your MAME sets (vsav2.zip, vsav.zip, vhunt2.zip) and it makes vsav2e.zip. The sources of this version are in the zip." \
+            dist/vsav2e-builder.exe "dist/vsav2e-source-${{ inputs.version }}.zip" dist/SHA256SUMS.txt

@@ -13,9 +13,10 @@ asks for. When it ends it compares the checksums of the chips with `tools/builde
   command-line form (`--cli ROM_FOLDER OUTPUT_FOLDER`); `make_vsav2e.build_set()` is the build.
 - `tools/builder/vsav2e_builder.spec`: the PyInstaller recipe (one windowed program with `assets/`
   and the reference checksums as data).
-- `.github/workflows/builder.yml`: builds the program on a Windows runner (on a `v*` tag, or by
-  hand: *Actions > Windows builder > Run workflow*) and attaches `vsav2e-builder.exe` and its SHA-256
-  to the run (and to a draft release on a tag).
+- `.github/workflows/release.yml`: run by hand only (*Actions > Release > Run workflow*, giving the
+  version, e.g. `v1.0`; or `gh workflow run release.yml -f version=v1.0`). It builds `vsav2e-builder.exe` on a
+  Windows runner and publishes a release with the program, the sources of that commit
+  (`vsav2e-source-<version>.zip`) and `SHA256SUMS.txt`.
 - `tools/build/paths.py`: where the build finds `assets/`, in a checkout or inside the program.
 
 ## When the build changes

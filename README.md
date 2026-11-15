@@ -63,13 +63,10 @@ Language: English by default, Japanese from the service menu (`docs/text.md`).
 
 ## Release
 
-The Windows builder (`vsav2e-builder.exe`, a window that asks for your MAME sets and has the pictures inside) is built by a GitHub Actions workflow: `docs/builder.md`.
-
-`tools/release.py DIR VERSION --checksums out/vsav2e.checksums.txt` makes the build kit: the
-portable build script and its sources without the material of the home games (`assets/`).
-The build needs Python 3.8+ and Pillow only (no assembler: the assembled code is committed
-as hex), is deterministic, and writes `vsav2e.checksums.txt` (CRC32 and SHA-1 of each chip)
-to compare with the release's. Details in the kit's `BUILD.txt`.
+A release (the Windows builder `vsav2e-builder.exe`, which asks for your MAME sets and has the pictures
+inside, plus the sources) is made by hand from GitHub Actions: `docs/builder.md`. The build is deterministic
+and writes `vsav2e.checksums.txt` (CRC32 and SHA-1 of each chip), which the builder compares with
+`tools/builder/reference_checksums.txt`.
 
 ## Running the tracer
 
