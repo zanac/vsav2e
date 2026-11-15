@@ -148,6 +148,55 @@ original, slowed, remixed, with no voices or effects) and, in vsav2e, by the sou
 RAM: the tempo and the slots of the music are the ones of the sequences, in bank 15 for
 Donovan.
 
+## How an ending works (the model for new ones)
+
+Read from Vampire Savior's script of B.B. Hood (`0x8cd02`) and the routines it calls. An
+ending is a step machine: the game mode calls the script of the character each frame
+(the table of scripts at `0x21b06` of Vampire Savior, by character), which jumps on
+the step number `$10(a5)` (a table of offsets, steps of two) and does that step's work
+(wait `$12(a5)` frames, start a fade, put a tilemap, make an object) before moving to
+the next. Where the ending needs Vampire Savior 2's code the moved code calls it at its
+own address (`VALUE_PATCHES` of `endings_recipe.py`): Vampire Savior -> Vampire Savior 2
+
+- fades of the palettes (`tst.b $7401(a5)`... `jsr $13a8`): `0x1463e` -> `0x12cea`,
+  `0x14662` -> `0x12d0e`, `0x14686` -> `0x12d56`, `0x146aa` -> `0x12d7a`, `0x146ce` ->
+  `0x12d9e` (and `0x146f2` -> `0x12de6`); the routine returns with d0 = 0 when the fade
+  is finished, so a step calls it each frame and moves on when `$7401(a5)` is clear;
+- the palettes of the three scroll layers of the character: `0x14f6a`, `0x14f7c`,
+  `0x14f8e` -> `0x1365e`, `0x13670`, `0x13682`; the ending's own `0x21c26` calls them;
+- object allocation (an object is a record at a4; `jsr` the allocator, `beq` if there is
+  none, then `move.l #class, (a4)`, the fields `$10`/`$14` (x, y), `$1a` (attributes)):
+  `0x16fba`, `0x16fd0`, `0x16fe6`, `0x16ffc` -> `0x15702`, `0x15718`, `0x1572e`, `0x15744`
+  (one for each pool of objects); the classes (`recipe.MOVED_CLASSES`, in the table of
+  each pool; the long `moveq #n` is the class number in the pool) are the moved ones;
+- the tilemap loader `0x1f856` (moved: it is in the code ranges) takes d0 = the number of
+  a block of 64 entries (`(code, attribute)` words) of the table at `0x384aa4` (256 bytes
+  a block) and a1 = where to write them (the layer's map at `0x90xxxx`); the loader adds
+  `0x600` to the code (the codes are relative to the start of the scroll 3 tiles in the
+  graphics, and the build renumbers them in the scroll bank). A picture is made of
+  blocks of 8x8 tiles, each in column order (see `tools/build/scroll_picture.py`);
+- the ending music, `moveq #n, d0` then `jsr $21d66` (moved; it asks the number to the
+  sound CPU through a sender of its own, `endings.py`): n is Vampire Savior's number of
+  the music, replaced in the build with `sound.py`'s (for the new endings the number of
+  the stage theme: Huitzil 0x6c, Pyron 0x6d, Donovan 0x6e);
+- the end of the script jumps to `0x21be6` (moved), which leaves the ending for the
+  staff credits.
+
+The scroll registers that the scripts write are words of the ending's record:
+`$22`-`$2c(a5)` (the position and the speed of the layers), `$32(a5)`, `$3a(a5)` (the
+layers' own registers) and `$20(a5)` (the layers' display flags).
+
+### Converting a picture: `tools/build/scroll_picture.py`
+
+`convert(image)` cuts an image into cells of 32x32, gives them the fewest palettes of 16
+colours, drops the tiles that repeat and gives back the tiles (512 bytes), the palettes
+(16 words 0xfrgb) and the cells (tile, palette) as a tilemap in the hardware's column
+order. The tile format was checked by decoding the pictures of Vampire Savior's endings
+(the globe of B.B. Hood's ending comes out as it is). A new ending puts these tiles in the
+scroll bank after the renumbered ones, its tilemap and its palettes in the extension,
+and its own small step machine (written for the build) writes them into the layers with
+the primitives above.
+
 ## Program extension
 
 The endings take 490 KB of the extension, which is 2 MB (`0x400000`-`0x5fffff`).
