@@ -97,14 +97,21 @@ class Scenery:
             screen.paste(rgb, CPS_OFFSET, solid)
         return screen
 
-    def picture(self, layer, layers, first_page=None, area=None):
+    def picture(self, layer, layers, first_page=None, area=None, crop=None):
         """converts the layers to tiles of the scroll layer; returns (the cells to draw, the
         palette block). first_page: the palette page to start at (a picture that is
         never on the screen together with another may take its pages); area: (columns,
-        rows) of cells to write, the cells without a tile as the blank code"""
+        rows) of cells to write, the cells without a tile as the blank code; crop: (column,
+        row, columns, rows) of cells, only that part of the screen (a patch over a picture)"""
         from build import scroll_picture
         tile = LAYER_TILE[layer]
-        converted = scroll_picture.convert(self.compose(layers), TRANSPARENT, tile=tile)
+        image = self.compose(layers)
+        first_column = first_row = 0
+        if crop:
+            first_column, first_row, columns, rows = crop
+            image = image.crop((first_column * tile, first_row * tile,
+                                (first_column + columns) * tile, (first_row + rows) * tile))
+        converted = scroll_picture.convert(image, TRANSPARENT, tile=tile)
         if first_page is None:
             first_page = self.pages[layer]
             self.pages[layer] += len(converted.palettes)
@@ -129,10 +136,10 @@ class Scenery:
                 if cell is None:
                     if area is None:
                         continue
-                    cells += struct.pack('>3H', cell_offset(layer, column, row), BLANK_CODE[layer], 0)
+                    cells += struct.pack('>3H', cell_offset(layer, first_column + column, first_row + row), BLANK_CODE[layer], 0)
                 else:
                     index, palette = cell
-                    cells += struct.pack('>3H', cell_offset(layer, column, row), numbers[index],
+                    cells += struct.pack('>3H', cell_offset(layer, first_column + column, first_row + row), numbers[index],
                                          first_page + palette)
                 count += 1
         address = self.blob.add(struct.pack('>H', count) + cells)
@@ -178,8 +185,11 @@ class Scenery:
         channels += struct.pack('>H', 0xffff)
         events_address = self.blob.add(events)
         channels_address = self.blob.add(channels)
-        return self.blob.add(struct.pack('>IIIIL', events_address, channels_address, tables_address,
-                                         frames, music))
+        header = self.blob.add(struct.pack('>IIIIL', events_address, channels_address, tables_address,
+                                           frames, music))
+        # the next ending starts with no events or channels of its own so far
+        self.events, self.channels, self.full = [], [], None
+        return header
 
 
 # --- Donovan: Anita asleep, the Dyrek blade fades in, a flash wakes her, the hand ---
@@ -197,10 +207,52 @@ def interpolate(points, frame):
     return points[-1][1]
 
 
+# the glints on the blade: bank 7080 of Saturn's sprites cycles through 13 states; the first (0) is
+# shown once, then these (frame less 1063, state) repeat every 74 frames (Saturn's frames 1403-1476)
+SPARKLE_START = 1060
+SPARKLE_LOOP = [(0, 1), (2, 2), (8, 3), (14, 4), (16, 5), (20, 6), (24, 7), (26, 8), (32, 1), (38, 2),
+                (40, 9), (44, 3), (48, 10), (50, 5), (56, 7), (62, 8), (64, 11), (68, 1), (72, 12)]
+SPARKLE_PERIOD = 74
+SPARKLE_CELLS = (4, 2, 4, 1)         # column, row, columns, rows of the cells they cover (on scroll 3)
+SPARKLE_PAGE = 28                    # the palette pages of the patches (the pictures use 16 and up)
+FIGURE_FRAME = 1580
+
+
+def sparkles(scenery, path, frames):
+    """patches over the blade: the few cells they cover, redrawn with each state (the cells of
+    the picture below, with the glint on them, so that the pictures need not be repeated)"""
+    runs = [(SPARKLE_START, SPARKLE_START + 3, 0)]
+    start = SPARKLE_START + 3
+    while start < frames:
+        for offset, state in SPARKLE_LOOP:
+            runs.append((start + offset, None, state))
+        start += SPARKLE_PERIOD
+    runs = [(first, runs[i + 1][0] - 1 if i + 1 < len(runs) else frames - 1, state)
+            for i, (first, _, state) in enumerate(runs)]
+    patches = {}
+    for first, last, state in runs:
+        if first >= frames:
+            break
+        last = min(last, frames - 1)
+        # a run that crosses the frame of the figure is cut there: its picture changes
+        for part_first, part_last in ((first, min(last, FIGURE_FRAME - 1)), (max(first, FIGURE_FRAME), last)):
+            if part_first > part_last:
+                continue
+            figure = part_first >= FIGURE_FRAME
+            if (state, figure) not in patches:
+                layers = [(path('figure'), 1)] if figure else []
+                layers += [(path('awake'), 1), (path('blade'), 1), (path('sparkle%02d' % state), 1)]
+                patches[state, figure] = scenery.picture(3, layers, first_page=SPARKLE_PAGE,
+                                                         crop=SPARKLE_CELLS)
+            cells, block = patches[state, figure]
+            scenery.draw(part_first, 3, cells)
+            scenery.hold(part_first, part_last, block)
+
+
 def build_donovan(scenery, assets):
     path = lambda name: os.path.join(assets, name + '.png')
     frames = DONOVAN_FRAMES
-    area = (13, 4)                      # the cells (32x32) the scenes cover: 416 x 128 pixels
+    area = (13, 6)                      # the cells (32x32) the scenes cover (the picture sinks 39 pixels)
     scene = lambda *layers: scenery.picture(3, layers, first_page=16, area=area)   # the game writes the low pages
     for layer in (1, 2, 3):
         scenery.clear(0, layer)
@@ -225,6 +277,7 @@ def build_donovan(scenery, assets):
     cells, block = scene((path('figure'), 1), (path('awake'), 1), (path('blade'), 1))
     scenery.draw(1580, 3, cells)
     scenery.hold(1580, frames - 1, block)
+    sparkles(scenery, path, frames)
     # the hand comes in over everything, on scroll 2
     cells, block = scenery.picture(2, [(path('hand'), 1)], first_page=24)   # the game writes the low pages
     scenery.draw(1519, 2, cells)
