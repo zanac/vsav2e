@@ -80,7 +80,20 @@ of the histogram, for CPU 0 and 1, in the same file). The loops that read the ca
 not the CD driver, a memset or a copy led to the sprite engine at `0x06012340`-`0x06012740` and from
 there to the uploader. What is still to decode is how the sprites are put together: the chunks of
 `ENDATxx.DAT` are listed by 16-byte entries (position, size) that the sprite engine reads, the width
-of a texture comes from there. `END*.BG` (a header `TK`) was not seen being read in the endings
+of a texture comes from there. 
+
+The command table of the VDP1 (at the start of its VRAM, 32 bytes a command) lists every sprite of a
+picture: position, size, flips, the colour bank and the address of its texture. Textures are 4 bits a
+pixel (0 transparent), packed one after the other with 32-byte alignment. `tools/saturn/vdp1render.py`
+draws a `VDUMPS` dump (VDP1 VRAM and VDP2 CRAM) from that table: the result is the same as the screen
+capture (checked on frame 700 of Donovan's ending), so the pictures, their frame, the text window and
+the initials can be taken apart sprite by sprite, each with its own 16-colour palette.
+
+In `ENDATxx.DAT` a chunk of the texture pool starts with `[mode:4][width/8:4][height:8]` and its
+frame table refers to it by `offset / 4` from the start of the pool (the pool of section 2 starts at
+`0x380` in `ENDAT13.DAT`, whose offset table is at the start of the file).
+
+`END*.BG` (a header `TK`) was not seen being read in the endings
 and keeps its own format.
 
 ## The endings
