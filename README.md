@@ -63,6 +63,8 @@ Language: English by default, Japanese from the service menu (`docs/text.md`).
 
 ## Release
 
+The Windows builder (`vsav2e-builder.exe`, a window that asks for your MAME sets and has the pictures inside) is built by a GitHub Actions workflow: `docs/builder.md`.
+
 `tools/release.py DIR VERSION --checksums out/vsav2e.checksums.txt` makes the build kit: the
 portable build script and its sources without the material of the home games (`assets/`).
 The build needs Python 3.8+ and Pillow only (no assembler: the assembled code is committed

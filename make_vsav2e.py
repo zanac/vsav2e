@@ -28,6 +28,8 @@ import zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, 'tools'))
 sys.path.insert(0, os.path.join(HERE, 'text'))
+from build import paths
+ROOT = paths.resource_root()
 from build import build, sound
 from cps2 import program
 
@@ -40,14 +42,12 @@ SCROLL_BANK_NAMES = ['vs2e.29m', 'vs2e.31m', 'vs2e.33m', 'vs2e.35m']
 SOUND_PROGRAM_NAMES = ['vs2e.01', 'vs2e.02']
 # the second 8 MB of QSound samples: Vampire Hunter 2's
 HUNTER_SAMPLE_ROMS = ['vh2.11m', 'vh2.12m']
-PSX_DIRECTORY = os.path.join(HERE, 'assets', 'psx')
+PSX_DIRECTORY = os.path.join(ROOT, 'assets', 'psx')
 
 
-def main():
-    if len(sys.argv) < 2:
-        sys.exit(__doc__)
-    rom_directory = sys.argv[1]
-    output_directory = sys.argv[2] if len(sys.argv) > 2 else '.'
+def build_set(rom_directory, output_directory, log=print):
+    """builds vsav2e.zip and vsav2e.checksums.txt in output_directory from the sets in
+    rom_directory; returns the path of the zip and the lines of the checksums"""
     main_program, extension, upper_sprite_bank, scroll_bank, sound_program = build.build(rom_directory, PSX_DIRECTORY)
     files = list(zip(PROGRAM_CHIP_NAMES, program.split_program(main_program)))
     files.append((PROGRAM_EXTENSION_NAME, program.swap_byte_pairs(extension)))
@@ -71,8 +71,15 @@ def main():
                                                hashlib.sha1(data).hexdigest()) for name, data in files]
     with open(os.path.join(output_directory, 'vsav2e.checksums.txt'), 'w') as checksums:
         checksums.write('\n'.join(lines) + '\n')
-    print('\n'.join('  ' + line for line in lines))
-    print('written', output_path)
+    log('\n'.join('  ' + line for line in lines))
+    log('written ' + output_path)
+    return output_path, lines
+
+
+def main():
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    build_set(sys.argv[1], sys.argv[2] if len(sys.argv) > 2 else '.')
 
 
 if __name__ == '__main__':

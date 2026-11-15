@@ -4,6 +4,7 @@ import struct
 import zipfile
 
 from cps2 import program, sprite_rom
+from build import paths
 from build import endings, names, roster, select_screen, sound, story_text, title_screen, versus_stage, win_quotes
 from build.extension import EXTENSION_START, Extension
 
@@ -57,7 +58,7 @@ HUNTER_SPRITE_ROMS = ('vh2.13m', 'vh2.15m', 'vh2.17m', 'vh2.19m')
 # the pictures of the new endings (not in the repository: Saturn captures, see new_endings.py);
 # VSAV2E_ENDING_ASSETS overrides the folder
 ENDING_ASSETS = os.environ.get('VSAV2E_ENDING_ASSETS') or os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'assets', 'saturn', 'endings')
+    paths.resource_root(), 'assets', 'saturn', 'endings')
 
 
 def build(rom_directory, psx_directory):
