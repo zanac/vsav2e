@@ -297,6 +297,51 @@ def build_pyron(scenery, assets):
     return scenery.header(frames, tables[0], PYRON_MUSIC)
 
 
+# --- Huitzil: the damaged robot, the machines, the pilot, the city, each a picture that fades ---
+HUITZIL_MUSIC = 0x6c
+# (the font has no colon and no digits: the PlayStation's colons are full stops, 3600 seconds an hour)
+HUITZIL_PAGES = [
+    ['"Damage level over limit."'],
+    ['"Unable to maintain present', 'form... Breaking down..."'],
+    ['"Transmitting orders and program', 'code to an identical model..."'],
+    ['Huitzil was damaged and finally', 'broke down after fighting.'],
+    ['However, the command, "protect', 'the boy" was still operational.'],
+    ['"Many unidentified robot units', 'approaching! Airspace breached!"'],
+    ['"Who are they!?"'],
+    ['"Our weapons are ineffective!', 'He cannot explain why!"'],
+    ['"Perform maximum range scan', 'of area."'],
+    ['"Classify all life forms as', 'enemy target or as protected."'],
+    ['"Commence attack once', 'classifications are defined."'],
+    ['"One hour until completion', 'of search..."'],
+]
+# Saturn's frames 1660-4720 (the text pages), then the picture stays until 4880
+HUITZIL_DURATIONS = [240, 220, 260, 240, 360, 240, 240, 260, 240, 260, 240, 260]
+HUITZIL_FRAMES = 4880 - 1660
+
+
+def build_huitzil(scenery, assets):
+    path = lambda name: os.path.join(assets, name + '.png')
+    frames = HUITZIL_FRAMES
+    area = (13, 5)
+    # (picture, first frame, frames of fading in, last frame shown, frames of fading out): the
+    # times are Saturn's frames less 1660 (measured on the brightness of its picture)
+    shown = [('ship', 0, 15, 840, 20), ('machine', 861, 240, 1300, 20), ('face', 1321, 20, 2040, 20),
+             ('city', 2061, 40, 3180, 40)]
+    for layer in (1, 2, 3):
+        scenery.clear(0, layer)
+    for name, start, fade_in, end, fade_out in shown:
+        cells, block = scenery.picture(3, [(path(name), 1)], first_page=12, area=area)
+        scenery.draw(start, 3, cells)
+        scenery.fade(start, start + fade_in, block, 0, 0, 15)
+        scenery.hold(start + fade_in + 1, end - 1, block)
+        scenery.fade(end, end + fade_out - 1, block, 0, 15, 0)
+    ox2, oy2 = SCROLL_ORIGIN[2]
+    ox3, oy3 = SCROLL_ORIGIN[3]
+    tables = [scenery.scroll_table(frames, lambda f: ox2), scenery.scroll_table(frames, lambda f: oy2),
+              scenery.scroll_table(frames, lambda f: ox3), scenery.scroll_table(frames, lambda f: oy3)]
+    return scenery.header(frames, tables[0], HUITZIL_MUSIC)
+
+
 # The English text of the PlayStation game (its endings have these pages; one page is a list of
 # lines) and how long each page stays (frames; the timeline lasts as long as the pages).
 DONOVAN_PAGES = [
@@ -312,8 +357,8 @@ DONOVAN_PAGES = [
 ]
 DONOVAN_DURATIONS = [240, 480, 240, 240, 240, 240, 240, 240, 360]
 
-ENDINGS = {0x11: ('pyron', build_pyron), 0x13: ('donovan', build_donovan)}
-TEXTS = {0x11: (PYRON_PAGES, PYRON_DURATIONS), 0x13: (DONOVAN_PAGES, DONOVAN_DURATIONS)}
+ENDINGS = {0x10: ('huitzil', build_huitzil), 0x11: ('pyron', build_pyron), 0x13: ('donovan', build_donovan)}
+TEXTS = {0x10: (HUITZIL_PAGES, HUITZIL_DURATIONS), 0x11: (PYRON_PAGES, PYRON_DURATIONS), 0x13: (DONOVAN_PAGES, DONOVAN_DURATIONS)}
 # Vampire Savior's text and duration tables: the master table of each language, the table
 # of the durations (a word offset by character, then lists of words ended by 0)
 TEXT_TABLES = (0x332216, 0x33c5e4)
