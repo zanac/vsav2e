@@ -11,6 +11,8 @@ pictures an ending is not built and the character keeps Vampire Savior 2's own.
 import os
 import struct
 import sys
+import tempfile
+import zipfile
 
 from build import new_endings_code as code
 from build import story_text
@@ -328,6 +330,31 @@ def place_texts(writer, layout, address, savior, characters):
     return address
 
 
+# the pictures can also come in one archive in the assets folder (next to the folder they would be
+# in): the paths in it are those of the repository, assets/saturn/endings/<ending>/<layer>.png
+ARCHIVE = 'vsav2e_endings_assets.zip'
+ARCHIVE_FOLDER = 'assets/saturn/endings/'
+
+
+def pictures_folder(assets):
+    """the folder with the pictures: `assets` itself, or the archive extracted to a temporary one,
+    or None"""
+    if assets and os.path.isdir(assets):
+        return assets
+    archive = os.path.normpath(os.path.join(assets or '', '..', '..', ARCHIVE))
+    if not os.path.isfile(archive):
+        return None
+    folder = tempfile.mkdtemp(prefix='vsav2e_endings_')
+    with zipfile.ZipFile(archive) as zipped:
+        for name in zipped.namelist():
+            if name.startswith(ARCHIVE_FOLDER) and name.endswith('.png'):
+                target = os.path.join(folder, name[len(ARCHIVE_FOLDER):])
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with open(target, 'wb') as out:
+                    out.write(zipped.read(name))
+    return folder
+
+
 def place(writer, layout, address, assets, scroll_bank, scroll_position, next_free, savior):
     """writes the code and the data of the endings whose pictures are in `assets` (a folder
     with one folder for each) at `address`; returns (the end, {character id: script
@@ -335,6 +362,7 @@ def place(writer, layout, address, assets, scroll_bank, scroll_position, next_fr
     scenery = Scenery(Blob(address + len(code.CODE) + (len(code.CODE) & 1)), scroll_bank,
                       scroll_position, next_free)
     headers = {}
+    assets = pictures_folder(assets)
     for character, (name, build) in ENDINGS.items():
         folder = os.path.join(assets or '', name)
         if os.path.isdir(folder):

@@ -211,7 +211,7 @@ so that the build needs no assembler) and the data `tools/build/new_endings.py` 
 
 - the pictures are layers of the Saturn's screen (352x240 PNG with alpha) that
   `tools/saturn/ending_layers.py` writes from a dump of the Saturn emulator; they are not in
-  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure}.png`
+  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure}.png` (or, all in one, `assets/vsav2e_endings_assets.zip` with those paths)
   (override the folder with `VSAV2E_ENDING_ASSETS`). Without them the character keeps Vampire
   Savior 2's own ending and the build is unchanged;
 - `scroll_picture.py` converts them (the Saturn's screen is put at +16, -8 on the CPS2's);
