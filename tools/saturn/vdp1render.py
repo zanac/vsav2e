@@ -24,9 +24,11 @@ def rgb555(word):
 FRAME_BANKS = (0x71e0, 0x71f0, 0x7000, 0x7010)
 
 
-def render(vram, cram, width=352, height=240, skip_banks=()):
+def render(vram, cram, width=352, height=240, skip_banks=(), only_banks=None):
     """returns the picture as a list of rows of (r, g, b) or None (nothing drawn); the sprites
-    of the colour banks in skip_banks (CMDCOLR & 0xfff0) are not drawn"""
+    of the colour banks in skip_banks (CMDCOLR & 0xfff0) are not drawn, and with only_banks
+    the sprites of no other bank are (the polygon that is the black background is drawn
+    unless only_banks is given)"""
     picture = [[None] * width for _ in range(height)]
     palette = [rgb555(w) for w in struct.unpack('>%dH' % (len(cram) // 2), cram)]
     local_x = local_y = 0
@@ -37,10 +39,11 @@ def render(vram, cram, width=352, height=240, skip_banks=()):
         command = ctrl & 15
         if command == 10:                        # local coordinates
             local_x, local_y = xa, ya
-        elif command == 4:                       # polygon: the flat black background
+        elif command == 4 and only_banks is None:  # polygon: the flat black background
             for y in range(height):
                 picture[y] = [(0, 0, 0)] * width
-        elif command == 0 and (colr & 0xfff0) in skip_banks:
+        elif command == 0 and ((colr & 0xfff0) in skip_banks or
+                               (only_banks is not None and (colr & 0xfff0) not in only_banks)):
             continue
         elif command == 0:                       # normal sprite
             w, h = ((size >> 8) & 0x3f) * 8, size & 0xff

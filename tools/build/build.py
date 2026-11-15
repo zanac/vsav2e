@@ -54,6 +54,12 @@ FREE_SPACE_END = 0xff000
 HUNTER_SPRITE_ROMS = ('vh2.13m', 'vh2.15m', 'vh2.17m', 'vh2.19m')
 
 
+# the pictures of the new endings (not in the repository: Saturn captures, see new_endings.py);
+# VSAV2E_ENDING_ASSETS overrides the folder
+ENDING_ASSETS = os.environ.get('VSAV2E_ENDING_ASSETS') or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'assets', 'saturn', 'endings')
+
+
 def build(rom_directory, psx_directory):
     """vsav2e as (the 4 MB of the CPS2 program space as the 68000 sees it, the program
     extension at 0x400000, the four chips of the upper sprite bank that are not Vampire
@@ -118,7 +124,8 @@ def build(rom_directory, psx_directory):
                                                       endings.ENDING_MUSIC)
     with zipfile.ZipFile(os.path.join(rom_directory, 'vsav.zip')) as savior_archive:
         endings_end, scroll_bank = endings.apply(vsav2e, savior_code, savior_archive, extension.data,
-                                                 EXTENSION_START, endings_start, upper_bank, music)
+                                                 EXTENSION_START, endings_start, upper_bank, music,
+                                                 ENDING_ASSETS)
     extension.used = endings_end - EXTENSION_START
     print('endings: 0x%x-0x%x' % (endings_start, endings_end))
     print('program extension: 0x%x-0x%x' % (EXTENSION_START, extension.end()))

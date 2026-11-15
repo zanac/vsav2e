@@ -37,10 +37,10 @@ def from_nibbles(colour):
 
 
 def encode_tile(pens):
-    """32 rows of 32 pens -> the 512 bytes of the tile"""
+    """the rows of pens of a tile (32x32 or 16x16) -> its bytes (512 or 128)"""
     out = bytearray()
     for row in pens:
-        for group in range(4):
+        for group in range(len(row) // 8):
             planes = [0, 0, 0, 0]
             for bit in range(8):
                 pen = row[8 * group + bit]
@@ -50,13 +50,14 @@ def encode_tile(pens):
     return bytes(out)
 
 
-def decode_tile(data):
-    """the other way round: 32 rows of 32 pens"""
+def decode_tile(data, size=TILE):
+    """the other way round: `size` rows of `size` pens"""
     rows = []
-    for y in range(TILE):
+    stride = size // 2
+    for y in range(size):
         row = []
-        for group in range(4):
-            planes = data[16 * y + 4 * group:16 * y + 4 * group + 4]
+        for group in range(size // 8):
+            planes = data[stride * y + 4 * group:stride * y + 4 * group + 4]
             for bit in range(8):
                 row.append(sum(((planes[plane] >> (7 - bit)) & 1) << plane for plane in range(4)))
         rows.append(row)
@@ -88,7 +89,8 @@ class Picture:
     """the result: palettes (lists of colours, each 16 at most), tiles (512 bytes each),
     cells (columns x rows of (tile, palette)), the size in cells"""
 
-    def __init__(self, columns, rows):
+    def __init__(self, columns, rows, tile=TILE):
+        self.tile = tile
         self.columns = columns
         self.rows = rows
         self.palettes = []
@@ -114,13 +116,13 @@ class Picture:
         return entries
 
 
-def convert(image, transparent=None, max_palettes=MAX_PALETTES):
+def convert(image, transparent=None, max_palettes=MAX_PALETTES, tile=TILE):
     """image: a PIL image (any size; the cells at the right and bottom edge are padded with
     black). `transparent`: an RGB colour whose pixels become the transparent pen (15), or
     None. A cell that has only the transparent colour has no tile (its cell is None)."""
     image = image.convert('RGB')
-    columns = (image.width + TILE - 1) // TILE
-    rows = (image.height + TILE - 1) // TILE
+    columns = (image.width + tile - 1) // tile
+    rows = (image.height + tile - 1) // tile
     pixels = image.load()
     clear = to_nibbles(transparent) if transparent is not None else None
     limit = PENS - 1 if clear is not None else PENS
@@ -130,10 +132,10 @@ def convert(image, transparent=None, max_palettes=MAX_PALETTES):
     for row in range(rows):
         for column in range(columns):
             grid = []
-            for y in range(TILE):
+            for y in range(tile):
                 line = []
-                for x in range(TILE):
-                    px, py = column * TILE + x, row * TILE + y
+                for x in range(tile):
+                    px, py = column * tile + x, row * tile + y
                     line.append(to_nibbles(pixels[px, py]) if px < image.width and py < image.height else (0, 0, 0))
                 grid.append(line)
             counts = Counter(colour for line in grid for colour in line if colour != clear)
@@ -159,7 +161,7 @@ def convert(image, transparent=None, max_palettes=MAX_PALETTES):
         palettes[best[1]] |= colours
         placed[key] = best[1]
 
-    picture = Picture(columns, rows)
+    picture = Picture(columns, rows, tile)
     index_of = []
     for palette in palettes:
         ordered = sorted(palette, key=lambda colour: (sum(colour), colour))
@@ -189,7 +191,7 @@ def convert(image, transparent=None, max_palettes=MAX_PALETTES):
 def render(picture, background=(0, 0, 0)):
     """the picture as a PIL image, from its tiles, palettes and cells"""
     from PIL import Image
-    image = Image.new('RGB', (picture.columns * TILE, picture.rows * TILE), background)
+    image = Image.new('RGB', (picture.columns * picture.tile, picture.rows * picture.tile), background)
     for row in range(picture.rows):
         for column in range(picture.columns):
             cell = picture.cells[row][column]
@@ -197,12 +199,12 @@ def render(picture, background=(0, 0, 0)):
                 continue
             tile, palette = cell
             colours = picture.palettes[palette]
-            for y, line in enumerate(decode_tile(picture.tiles[tile])):
+            for y, line in enumerate(decode_tile(picture.tiles[tile], picture.tile)):
                 for x, pen in enumerate(line):
                     if pen == TRANSPARENT_PEN and len(colours) == PENS:
                         continue
                     if pen < len(colours):
-                        image.putpixel((column * TILE + x, row * TILE + y), from_nibbles(colours[pen]))
+                        image.putpixel((column * picture.tile + x, row * picture.tile + y), from_nibbles(colours[pen]))
     return image
 
 

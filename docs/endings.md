@@ -201,10 +201,46 @@ the primitives above.
 
 The endings take 490 KB of the extension, which is 2 MB (`0x400000`-`0x5fffff`).
 
+## The new endings: Donovan (done), Pyron and Huitzil (not yet)
+
+Vampire Savior has no ending for Donovan, Huitzil and Pyron (the home versions do). They are
+built from the Sega Saturn game's pictures and the PlayStation game's English text, by one
+timeline engine written in assembly (`tools/dev/new_endings.s`, assembled by
+`tools/dev/assemble_new_endings.py` into `tools/build/new_endings_code.py`, which is committed
+so that the build needs no assembler) and the data `tools/build/new_endings.py` makes:
+
+- the pictures are layers of the Saturn's screen (352x240 PNG with alpha) that
+  `tools/saturn/ending_layers.py` writes from a dump of the Saturn emulator; they are not in
+  the repository (the user supplies them): `assets/saturn/endings/donovan/{asleep,awake,blade,hand,figure}.png`
+  (override the folder with `VSAV2E_ENDING_ASSETS`). Without them the character keeps Vampire
+  Savior 2's own ending and the build is unchanged;
+- `scroll_picture.py` converts them (the Saturn's screen is put at +16, -8 on the CPS2's);
+  the tiles go after the renumbered ones in the scroll bank, the palettes high in the
+  palette pages (the game writes the low ones now and then), and each picture is written
+  to a scroll layer at its frame (`new_endings.Scenery`);
+- the timeline: events (draw cells, copy a palette, fill a layer) by frame, palette channels
+  (fades to black or white, or a palette held: written again each frame) and four tables of
+  the scroll registers (scroll 2: x, y; scroll 3: x, y). The text and its pages are the
+  pager's (Vampire Savior's code): `place_texts` writes the English pages and the durations
+  of each page (both languages) for the new characters;
+- the frame (purple walls and the window) is Vampire Savior's object class 0x40 of the first
+  pool (renumbered 0x7c), with the layers ordered scroll 1, 3, 2, then the objects (layer
+  control `$32 = 0x0b4e`): the walls hide what is outside the window. Scroll 3 shows the
+  scene (x - 0, y + 0x711: the picture is where the Saturn has it), scroll 2 the hand over it;
+- the game's own variables: `$12(a5)` is read by the objects (do not use it as a counter);
+  the engine keeps its state at `0xfe8-0xfec(a5)` and the real character at `0xff8(a5)`.
+
+Donovan's scene: Anita asleep (fades in), the blade (eight steps of brightness, each a
+composite of the two, because the cells of a layer cannot overlap), the flash that wakes her
+(to white and back), then the hand rising over the blade and Donovan's arm and face behind
+it. Missing: the sparkles on the blade, the blade's 2 pixels after the flash, Donovan's
+fade-in (his picture pops in), the order of the hand and the blade while the hand rises.
+
 ## Not done yet
 
-- Donovan, Huitzil and Pyron: the PlayStation game's endings for them (English text, the
-  Saturn game's pictures; their music is in the sound program, above, and nothing asks for it yet).
+- Pyron and Huitzil (their music is in the sound program above; `new_endings.py` has the
+  place for them).
+- Donovan's music (0x6e) is requested but not yet checked by ear.
 
 ## Testing
 

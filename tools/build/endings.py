@@ -26,6 +26,7 @@ what moves and every patch (addresses and numbers only). This module applies it:
 import struct
 
 from build import endings_recipe as recipe
+from build import new_endings
 from cps2 import sprite_rom
 
 # --- Vampire Savior 2: the object pools (class table, number of classes, object runner)
@@ -107,25 +108,40 @@ def savior_graphics(archive):
     return read
 
 
-def scroll_numbers():
-    """(layer, Vampire Savior code) -> its number in the scroll bank, and the bank's
-    byte offset of each: scroll 3 first (32x32), then 2, then 1, around the blank codes"""
+def _reserved():
+    """the byte ranges of the bank that the blank tile codes of the layers point at"""
+    return [(code * TILE_SIZE_OF_LAYER[layer], (code + 1) * TILE_SIZE_OF_LAYER[layer])
+            for layer, code in BLANK_CODES.items()]
+
+
+def next_free(position, layer):
+    """the first place from `position` where a tile of the layer fits, clear of the blank codes"""
+    size = TILE_SIZE_OF_LAYER[layer]
+    while True:
+        position = (position + size - 1) // size * size
+        clash = [end for start, end in _reserved() if start < position + size and position < end]
+        if not clash:
+            return position
+        position = max(clash)
+
+
+def scroll_layout():
+    """(layer, Vampire Savior code) -> its number in the scroll bank (scroll 3 first, 32x32,
+    then 2, then 1, around the blank codes), and the byte offset after the last tile"""
     wanted = {(layer, code) for _, layer, code, _ in recipe.SCROLL_ENTRIES} | {(2, FILL_CODE)}
-    reserved = [(code * TILE_SIZE_OF_LAYER[layer], (code + 1) * TILE_SIZE_OF_LAYER[layer])
-                for layer, code in BLANK_CODES.items()]
     numbers = {}
     position = 0
     for layer in (3, 2, 1):
         size = TILE_SIZE_OF_LAYER[layer]
         for code in sorted(code for (wanted_layer, code) in wanted if wanted_layer == layer):
-            while True:
-                position = (position + size - 1) // size * size
-                clash = [end for start, end in reserved if start < position + size and position < end]
-                if not clash:
-                    break
-                position = max(clash)
+            position = next_free(position, layer)
             numbers[(layer, code)] = position // size
             position += size
+    return numbers, position
+
+
+def scroll_numbers():
+    numbers, position = scroll_layout()
     if position > 4 * SCROLL_BANK_CHIP_SIZE:
         raise SystemExit('endings: the scroll bank is full')
     return numbers
@@ -187,6 +203,89 @@ def music_requests(savior_program):
     return found
 
 
+# --- the characters of the endings that are not Vampire Savior's ------------------------
+
+FIRST_NEW_ID = 0x10
+# The new endings borrow another character's tables (palettes, animations) for the ending
+# mode's own set up: $130(a5), the character, holds DONOR during the ending and the real
+# one is kept here (a byte of RAM nothing uses); the text pager and the script lookup read it.
+DONOR = 0x00
+REAL_CHARACTER = 0x0ff8
+CHARACTER_READS = (0x21ac8, 0xcd9c)       # moved `move.b $130(a5), d0`
+CHARACTER_READ = bytes.fromhex('102d0130')
+SCRIPT_TABLE = 0x21b06                  # Vampire Savior's scripts by character (moved)
+SCRIPT_LOOKUP = 0x21ace                 # in the moved mode: movea.l table(pc,d0.w),a0 / jsr (a0)
+SCRIPT_LOOKUP_ORIGINAL = bytes.fromhex('207b00364e90')
+NO_SCRIPT = 0x8cdf0                     # an rts in the moved scripts: no ending
+SCRIPT_HOOK_SIZE = 0x1e
+
+
+def script_hook(old_table, new_table):
+    """d0 = the character * 4: the script's address into a0 (the old table below 0x10, the
+    new one from there), then jumps to it (the call returns to the mode)"""
+    return (bytes.fromhex('0c40' '0040')                      # cmpi.w  #0x40, d0
+            + bytes.fromhex('650c')                           # bcs.s   old
+            + bytes.fromhex('0440' '0040')                    # subi.w  #0x40, d0
+            + b'\x41\xf9' + struct.pack('>I', new_table)      # lea     new, a0
+            + bytes.fromhex('6006')                           # bra.s   fetch
+            + b'\x41\xf9' + struct.pack('>I', old_table)      # old: lea old, a0
+            + bytes.fromhex('2070' '0000')                    # fetch: movea.l (a0, d0.w), a0
+            + bytes.fromhex('4ed0'))                          # jmp     (a0)
+
+
+def write_dispatcher(writer, address, layout, new_characters):
+    """the ending mode's entry (see the module's description); returns the end"""
+    bank = struct.pack('>I', SCROLL_BANK_REGISTER)
+    code = bytearray()
+    fixups = []                                   # (position of a displacement byte, label)
+    labels = {}
+
+    def branch(opcode, label):
+        code.extend([opcode, 0])
+        fixups.append((len(code) - 1, label))
+
+    code += bytes.fromhex('7000' '102d0130')                  # moveq #0, d0 / move.b $130(a5), d0
+    code += bytes.fromhex('4a6d0008')                         # tst.w   $8(a5)
+    branch(0x66, 'later')                                     # bne.s   later
+    code += bytes.fromhex('1b40%04x' % REAL_CHARACTER)        # move.b  d0, real_character(a5)
+    branch(0x60, 'classify')                                  # bra.s   classify
+    labels['later'] = len(code)
+    code += bytes.fromhex('102d%04x' % REAL_CHARACTER)        # move.b  real_character(a5), d0
+    labels['classify'] = len(code)
+    code += bytes.fromhex('0c00%04x' % 0x0f)                  # cmpi.b  #JEDAH, d0
+    branch(0x65, 'low')                                       # bcs.s   low
+    for character in new_characters:
+        code += bytes.fromhex('0c00%04x' % character)         # cmpi.b  #character, d0
+        branch(0x67, 'check')                                 # beq.s   check
+    branch(0x60, 'savior2')                                   # bra.s   savior2
+    labels['low'] = len(code)
+    code += bytes.fromhex('0c00%04x' % RANDOM_CHOICE)         # cmpi.b  #RANDOM_CHOICE, d0
+    branch(0x67, 'savior2')                                   # beq.s   savior2
+    labels['check'] = len(code)
+    code += bytes.fromhex('0c6d%04x0008' % SAVIOR_END_STEP)   # cmpi.w  #SAVIOR_END_STEP, $8(a5)
+    branch(0x65, 'ported')                                    # bcs.s   ported
+    branch(0x66, 'savior2')                                   # bne.s   savior2     Savior 2's credits
+    code += b'\x42\x79' + bank                                # clr.w   scroll bank
+    code += bytes.fromhex('1b6d%04x0130' % REAL_CHARACTER)    # move.b  real_character(a5), $130(a5)
+    code += bytes.fromhex('3b7c%04x0008' % SAVIOR2_CREDITS_STEP)   # move.w #credits, $8(a5)
+    branch(0x60, 'savior2')                                   # bra.s   savior2
+    labels['ported'] = len(code)
+    code += bytes.fromhex('4a6d0008')                         # tst.w   $8(a5)
+    branch(0x66, 'enter')                                     # bne.s   enter
+    code += bytes.fromhex('0c00%04x' % FIRST_NEW_ID)          # cmpi.b  #FIRST_NEW_ID, d0
+    branch(0x65, 'enter')                                     # bcs.s   enter
+    code += bytes.fromhex('1b7c%04x0130' % DONOR)             # move.b  #DONOR, $130(a5)   (step 0 of a new ending)
+    labels['enter'] = len(code)
+    code += bytes.fromhex('33fc%04x' % ALL_SCROLL_LAYERS) + bank   # move.w #7, scroll bank
+    code += b'\x4e\xf9' + struct.pack('>I', layout(SAVIOR_MODULE))  # jmp  the moved mode
+    labels['savior2'] = len(code)
+    code += b'\x4e\xf9' + struct.pack('>I', SAVIOR2_ENDING)   # jmp     Savior 2's
+    for position, label in fixups:
+        code[position] = labels[label] - (position + 1)
+    writer.put(address, bytes(code))
+    return address + len(code) + (len(code) & 1)
+
+
 class ExtensionWriter:
     def __init__(self, extension, base):
         self.data = extension
@@ -199,7 +298,8 @@ class ExtensionWriter:
         self.data[offset:offset + len(data)] = data
 
 
-def apply(vsav2e, savior_program, savior_archive, extension, extension_base, start, upper_bank, music):
+def apply(vsav2e, savior_program, savior_archive, extension, extension_base, start, upper_bank, music,
+          assets=None):
     """Moves the endings into vsav2e (a bytearray: the 4 MB program) and the extension (a
     bytearray from extension_base; the endings go from start). upper_bank: the four chips
     of the upper sprite bank (SpriteRoms). music: Vampire Savior's number of each piece of
@@ -265,26 +365,33 @@ def apply(vsav2e, savior_program, savior_archive, extension, extension_base, sta
     for pool, classes in recipe.MOVED_CLASSES.items():
         place = runner_hook(vsav2e, writer, place, pool, [layout(entry) for _, entry in classes])
 
+    # the endings of the characters Vampire Savior has none for
+    place, new_scripts, scroll_end = new_endings.place(writer, layout, (place + 1) & ~1, assets, scroll_bank,
+                                                       scroll_layout()[1], next_free, savior_program)
+
     # the ending mode
     dispatcher = place
-    bank = struct.pack('>I', SCROLL_BANK_REGISTER)
-    writer.put(dispatcher, bytes.fromhex(
-        '7000'                  # 00 moveq   #0, d0
-        '102d0130'              # 02 move.b  $130(a5), d0        the character
-        '0c0000%02x' '642c'       # 06 cmpi.b  #JEDAH, d0 / bcc savior2
-        '0c0000%02x' '6726'       # 0c cmpi.b  #RANDOM_CHOICE, d0 / beq savior2
-        '0c6d%04x0008' '6510'   # 12 cmpi.w  #SAVIOR_END_STEP, $8(a5) / bcs ported
-        '661c'                  # 1a bne     savior2             Savior 2's credits and after
-        % (JEDAH, RANDOM_CHOICE, SAVIOR_END_STEP))
-        + b'\x42\x79' + bank                                    # 1c clr.w   scroll bank
-        + bytes.fromhex('3b7c%04x0008' % SAVIOR2_CREDITS_STEP)  # 22 move.w  #credits, $8(a5)
-        + bytes.fromhex('600e')                                 # 28 bra     savior2
-        # ported:
-        + bytes.fromhex('33fc%04x' % ALL_SCROLL_LAYERS) + bank  # 2a move.w  #7, scroll bank
-        + b'\x4e\xf9' + struct.pack('>I', layout(SAVIOR_MODULE))  # 32 jmp   the moved mode
-        # savior2:
-        + b'\x4e\xf9' + struct.pack('>I', SAVIOR2_ENDING))      # 38 jmp     Savior 2's
-    place = dispatcher + 0x3e
+    place = write_dispatcher(writer, dispatcher, layout, sorted(new_scripts))
+    # the scripts of the characters Vampire Savior has no ending for: a table by character
+    # (from id 0x10) read by a hook where the moved mode looks the script up (only when the
+    # build has pictures for some of them)
+    if new_scripts:
+        hook = place
+        table = hook + SCRIPT_HOOK_SIZE
+        place = table + 4 * (max(new_scripts) - FIRST_NEW_ID + 1)
+        old_lookup = layout(SCRIPT_LOOKUP)
+        if bytes(extension[old_lookup - extension_base:old_lookup - extension_base + 6]) != SCRIPT_LOOKUP_ORIGINAL:
+            raise SystemExit('endings: unexpected code in the moved ending mode')
+        for address in CHARACTER_READS:
+            read = layout(address)
+            if bytes(extension[read - extension_base:read - extension_base + 4]) != CHARACTER_READ:
+                raise SystemExit('endings: unexpected code at 0x%x' % address)
+            writer.put(read + 2, struct.pack('>H', REAL_CHARACTER))
+        writer.put(old_lookup, b'\x4e\xb9' + struct.pack('>I', hook))         # jsr hook
+        writer.put(hook, script_hook(layout(SCRIPT_TABLE), table))
+        for character in range(FIRST_NEW_ID, max(new_scripts) + 1):
+            writer.put(table + 4 * (character - FIRST_NEW_ID),
+                       struct.pack('>I', new_scripts.get(character) or layout(NO_SCRIPT)))
     original = b'\x4e\xf9' + struct.pack('>I', SAVIOR2_ENDING)
     if vsav2e[ENDING_MODE_JUMP:ENDING_MODE_JUMP + 6] != original:
         raise SystemExit('endings: unexpected code at the ending mode')
