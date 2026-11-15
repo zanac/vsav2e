@@ -15,8 +15,7 @@ Measured on the disc (SLUS-00745) in the PCSX ReARMed core, one capture per fram
 | 16 | from the 8th zoom picture on, the whole screen whitens: 16 (of 255) more to each component on each frame, up to 248; the 15th step is shown twice |
 | then | the logo still on black, about 370 frames, then the demonstration |
 
-The pictures of the zoom are the PlayStation's own (in `assets/vsav2e_title_assets.zip`,
-at their paths `assets/psx/title/`): `zoom1.png` to
+The pictures of the zoom are the PlayStation's own (in `assets/psx/title/`): `zoom1.png` to
 `zoom8.png` (the 8th was captured with the first flash step, which the build takes off),
 and `darkstalkers3.png` for the still logo. On the arcade screen (384 x 224) the
 PlayStation one (364 x 240) is centred.

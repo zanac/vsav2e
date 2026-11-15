@@ -16,8 +16,8 @@ Hunter 2, copied as they are.
 
 The select screen is laid out like the PlayStation Darkstalkers 3's and takes its three
 new cells from captures of it: assets/psx/select/*.png, next to this script. The title
-screen is the PlayStation one, from the captures in assets/vsav2e_title_assets.zip (or
-in assets/psx/title/).
+screen is the PlayStation one, from the captures in assets/psx/title/. The new endings of
+Donovan, Huitzil and Pyron come from the Saturn's pictures in assets/saturn/endings/.
 """
 import hashlib
 import os
