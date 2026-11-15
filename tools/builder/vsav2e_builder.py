@@ -97,7 +97,7 @@ def window():
     ttk.Label(frame, text='Where to put vsav2e.zip:').grid(row=2, column=0, columnspan=3, sticky='w', pady=(10, 0))
     ttk.Entry(frame, textvariable=output_folder).grid(row=3, column=0, columnspan=2, sticky='ew', padx=(0, 6))
     ttk.Button(frame, text='Browse...', command=lambda: choose(output_folder, False)).grid(row=3, column=2)
-    log = scrolledtext.ScrolledText(frame, height=14, state='disabled', font=('Consolas', 9))
+    log = scrolledtext.ScrolledText(frame, height=14, state='disabled', font=('Consolas', 9), wrap='none')
     log.grid(row=4, column=0, columnspan=3, sticky='nsew', pady=10)
     progress = ttk.Progressbar(frame, mode='determinate')
     progress.grid(row=5, column=0, columnspan=2, sticky='ew', padx=(0, 6))
@@ -170,7 +170,7 @@ def window():
         status.configure(text=text)
         if autotest:                                    # a test run: report and close
             print('AUTOTEST', 'ok' if ok else 'failed', text)
-            root.after(300, root.destroy)
+            root.after(int(os.environ.get('VSAV2E_BUILDER_AUTOTEST_HOLD', '300')), root.destroy)
             return
         (messagebox.showinfo if ok else messagebox.showerror)('vsav2e builder', text)
 

@@ -5,8 +5,8 @@ one ending of its own for Jedah). Vampire Savior has an ending for each characte
 pictures, animations and texts, in English and Japanese — and the PlayStation Darkstalkers
 3 has the same ones. vsav2e plays Vampire Savior's ending for the 14 characters it has
 (`00`-`0a`, `0c`-`0e`), then Vampire Savior 2's staff credits, ranking and game over;
-Jedah and the three characters Vampire Savior does not have (Donovan, Huitzil, Pyron)
-keep Vampire Savior 2's ending.
+the three characters Vampire Savior does not have (Donovan, Huitzil, Pyron) get new endings
+(below); Jedah keeps Vampire Savior 2's own.
 
 ## How: the code moves, it is not rewritten
 
